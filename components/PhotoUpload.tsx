@@ -19,7 +19,7 @@ export default function PhotoUpload({
   const supabase = createClient();
   const [studentId, setStudentId] = useState(students[0]?.id ?? "");
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<
+  const [status, setStatus] = useState
     "idle" | "uploading" | "grading" | "done" | "error"
   >("idle");
   const [result, setResult] = useState<any>(null);
@@ -136,6 +136,10 @@ export default function PhotoUpload({
           </p>
           <p className="mb-2 text-gray-600">
             Total skor AI: {result.total_score}
+          </p>
+          <p className="mb-2 rounded bg-yellow-50 px-2 py-1 text-xs text-yellow-800">
+            [DEBUG] Baris tersimpan ke database: {result.debug_saved_rows_count}
+            {result.debug_saved_rows_count === 0 && " — TIDAK ADA YANG TERSIMPAN!"}
           </p>
           <ul className="space-y-1">
             {result.scores?.map((s: any) => (
