@@ -19,9 +19,7 @@ export default function PhotoUpload({
   const supabase = createClient();
   const [studentId, setStudentId] = useState(students[0]?.id ?? "");
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState
-    "idle" | "uploading" | "grading" | "done" | "error"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "uploading" | "grading" | "done" | "error">("idle");
   const [result, setResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
