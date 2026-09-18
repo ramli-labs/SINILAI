@@ -72,12 +72,28 @@ export default async function ReviewPage({
 
   const submissionIds = (submissions ?? []).map((s) => s.id);
 
-  const { data: allScores } = await supabase
+  const { data: allScores, error: scoresError } = await supabase
     .from("question_scores")
     .select(
-      "id, submission_id, ai_score, ai_reasoning, confidence, flagged_for_review, teacher_override_score, questions(question_number, max_marks)"
+      "id, submission_id, question_id, ai_score, ai_reasoning, confidence, flagged_for_review, teacher_override_score"
     )
     .in("submission_id", submissionIds.length > 0 ? submissionIds : [""]);
+
+  if (scoresError) {
+    // Ditampilkan supaya kita tahu persis penyebabnya, bukan cuma "kosong"
+    console.error("Gagal ambil question_scores:", scoresError.message);
+  }
+
+  // Ambil detail soal (nomor & max poin) terpisah, lalu gabung manual —
+  // menghindari embed relasi PostgREST yang bisa gagal diam-diam.
+  const { data: examQuestions } = await supabase
+    .from("questions")
+    .select("id, question_number, max_marks")
+    .eq("exam_id", examId);
+
+  const questionById = new Map(
+    (examQuestions ?? []).map((q) => [q.id, q])
+  );
 
   return (
     <div>
@@ -132,7 +148,9 @@ export default async function ReviewPage({
                       </tr>
                     </thead>
                     <tbody>
-                      {scores.map((sc: any) => (
+                      {scores.map((sc: any) => {
+                        const q = questionById.get(sc.question_id);
+                        return (
                         <tr
                           key={sc.id}
                           className={
@@ -141,13 +159,13 @@ export default async function ReviewPage({
                           }
                         >
                           <td className="py-1.5">
-                            {sc.questions?.question_number}
+                            {q?.question_number ?? sc.question_id}
                             {sc.flagged_for_review && (
                               <span title={sc.ai_reasoning}> ⚠</span>
                             )}
                           </td>
                           <td className="py-1.5">
-                            {sc.ai_score}/{sc.questions?.max_marks}
+                            {sc.ai_score}/{q?.max_marks ?? "?"}
                             <input
                               type="hidden"
                               name={`aiScore-${sc.id}`}
@@ -169,7 +187,8 @@ export default async function ReviewPage({
                             />
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
 
