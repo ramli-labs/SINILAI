@@ -13,24 +13,24 @@ export interface QuestionScoreResult {
   question_number: string;
   ai_score: number;
   max_score: number;
-  marks_awarded: string[]; // contoh: ["B1", "C2"] — kode yang terpenuhi
-  marks_missed: string[]; // contoh: ["C1"] — kode yang tidak terpenuhi
-  reasoning: string; // penjelasan singkat kenapa dapat/tidak dapat tiap kode
+  marks_awarded: string[];
+  marks_missed: string[];
+  reasoning: string;
   confidence: "high" | "medium" | "low";
   flagged_for_review: boolean;
   flag_reason?: string;
 }
 
 export interface GradingResponse {
-  student_name_read: string | null; // nama yang terbaca AI dari foto, untuk verifikasi
+  student_name_read: string | null;
   scores: QuestionScoreResult[];
 }
 
 interface GradeSubmissionInput {
-  imageBase64: string; // foto jawaban siswa, base64 tanpa prefix data URI
+  imageBase64: string;
   imageMediaType: "image/jpeg" | "image/png" | "image/webp";
   questions: Question[];
-  markSchemeItems: MarkSchemeItem[]; // semua item mark scheme untuk questions di atas
+  markSchemeItems: MarkSchemeItem[];
 }
 
 function buildSystemPrompt(): string {
@@ -66,7 +66,7 @@ function buildUserPrompt(
             }): ${m.accepted_answers}`
         )
         .join("\n");
-      return `Question ${q.question_number} (max ${q.max_marks} marks)${
+      return `Question ${q.question_number} (max ${q.max_marks} marks)\nquestion_id (copy exactly into your JSON): ${q.id}${
         q.question_text ? `\nQuestion text: ${q.question_text}` : ""
       }\nMark scheme:\n${itemLines}`;
     })
@@ -95,6 +95,8 @@ Return JSON in exactly this shape:
     }
   ]
 }
+
+CRITICAL: "question_id" is a long UUID string (like "a1b2c3d4-...") — copy it EXACTLY character-for-character from "Question <question_number> (max ...)" lines above, where it appears as internal metadata. Do NOT put the question_number (like "1(a)") into the question_id field — those are two different fields and must never be swapped. "question_number" is where "1(a)" style labels go.
 
 Include one entry in "scores" for every question listed above, using its exact question_id.`;
 }
