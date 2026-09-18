@@ -87,6 +87,15 @@ export async function POST(req: NextRequest) {
     });
 
     // 5. Simpan hasil ke question_scores
+    // Sanitasi confidence: AI kadang mengembalikan variasi kapitalisasi/nilai
+    // di luar ekspektasi. Kolom ini punya CHECK constraint (high/medium/low),
+    // jadi nilai di luar itu HARUS dinormalisasi, atau insert akan gagal total.
+    const normalizeConfidence = (c: string): "high" | "medium" | "low" => {
+      const lower = (c ?? "").toLowerCase().trim();
+      if (lower === "high" || lower === "medium" || lower === "low") return lower;
+      return "medium"; // default aman kalau AI mengembalikan nilai tak terduga
+    };
+
     const rows = result.scores.map((s) => ({
       submission_id,
       question_id: s.question_id,
@@ -94,13 +103,26 @@ export async function POST(req: NextRequest) {
       ai_reasoning: `Awarded: ${s.marks_awarded.join(", ") || "-"} | Missed: ${
         s.marks_missed.join(", ") || "-"
       } | ${s.reasoning}`,
-      confidence: s.confidence,
+      confidence: normalizeConfidence(s.confidence),
       flagged_for_review: s.flagged_for_review,
     }));
 
-    await supabase.from("question_scores").upsert(rows, {
-      onConflict: "submission_id,question_id",
-    });
+    const { error: scoresError } = await supabase
+      .from("question_scores")
+      .upsert(rows, { onConflict: "submission_id,question_id" });
+
+    if (scoresError) {
+      // Jangan gagal diam-diam — tandai submission error dan laporkan ke client
+      await supabase
+        .from("submissions")
+        .update({ status: "error" })
+        .eq("id", submission_id);
+
+      return NextResponse.json(
+        { error: `Gagal simpan skor ke database: ${scoresError.message}` },
+        { status: 500 }
+      );
+    }
 
     const totalScore = result.scores.reduce((sum, s) => sum + s.ai_score, 0);
 
