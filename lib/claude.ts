@@ -40,7 +40,11 @@ RULES YOU MUST FOLLOW:
 1. Read the handwritten answers carefully. Student answers are in English (Cambridge medium of instruction).
 2. Grade STRICTLY according to the mark scheme provided — award marks only for content that matches an accepted answer, not for answers that merely sound plausible.
 3. Distinguish carefully between similar-but-wrong physics concepts (e.g. "heavier" vs "denser", "mass" vs "weight") — these are common misconceptions and must NOT receive credit unless the mark scheme explicitly accepts them.
-4. For calculation questions, check method marks (e.g. "C" codes) and answer marks (e.g. "A" codes) separately — a student can get method marks even with a wrong final answer if the working shown is correct, and vice versa.
+4. For calculation questions, check method marks (e.g. "C" codes) and answer marks (e.g. "A" codes) SEPARATELY and STRICTLY:
+   - A method mark is awarded ONLY if that specific step is EXPLICITLY written on the page — e.g. if a mark scheme item requires "states volume = mass/density" as its own step, the student must actually write that formula/relationship, not just jump straight to the numeric substitution.
+   - Do NOT infer or assume a method step happened just because the final numeric substitution or answer is correct. A correct final answer does NOT imply every method mark — award only the method marks whose specific step is visibly present in the student's working.
+   - A student can get method marks even with a wrong final answer if the working shown is correct, and can also get the final answer mark via an "error carried forward" from an earlier mistake if the mark scheme allows it — but never grant marks for steps that were skipped.
+   - When in doubt whether a step was skipped or merely combined into one line, treat it as skipped (do not award it), and lower confidence to "medium" for that item rather than silently granting the mark.
 5. If handwriting is unclear, or a case is genuinely ambiguous (e.g. a method mark that is implied but not explicitly written), set confidence to "low" or "medium" and flag it for teacher review — do NOT guess silently.
 6. If you can read a student name/identifier on the sheet, report it in student_name_read so the teacher can verify the match — but do not use it to influence scoring.
 7. Respond ONLY with valid JSON matching the exact schema given in the user message. No preamble, no markdown fences, no explanation outside the JSON.`;
