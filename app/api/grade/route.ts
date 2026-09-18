@@ -7,7 +7,6 @@ import { createClient } from "@supabase/supabase-js";
 import { gradeSubmission } from "@/lib/claude";
 import type { Question, MarkSchemeItem } from "@/lib/types";
 
-// Service role client — hanya dipakai di server, TIDAK pernah dikirim ke browser.
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -24,7 +23,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Ambil submission + relasi exam
     const { data: submission, error: subError } = await supabase
       .from("submissions")
       .select("id, exam_id, student_id, photo_url, status")
@@ -50,7 +48,6 @@ export async function POST(req: NextRequest) {
       .update({ status: "processing" })
       .eq("id", submission_id);
 
-    // 2. Ambil soal + mark scheme untuk exam ini
     const { data: questions } = await supabase
       .from("questions")
       .select("*")
@@ -72,13 +69,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Ambil foto dan encode ke base64
     const photoResponse = await fetch(submission.photo_url);
     const photoBuffer = await photoResponse.arrayBuffer();
     const imageBase64 = Buffer.from(photoBuffer).toString("base64");
     const contentType = photoResponse.headers.get("content-type") ?? "image/jpeg";
 
-    // 4. Panggil Claude API
     const result = await gradeSubmission({
       imageBase64,
       imageMediaType: contentType as "image/jpeg" | "image/png" | "image/webp",
@@ -86,26 +81,46 @@ export async function POST(req: NextRequest) {
       markSchemeItems: markSchemeItems ?? [],
     });
 
-    // 5. Simpan hasil ke question_scores
-    // Sanitasi confidence: AI kadang mengembalikan variasi kapitalisasi/nilai
-    // di luar ekspektasi. Kolom ini punya CHECK constraint (high/medium/low),
-    // jadi nilai di luar itu HARUS dinormalisasi, atau insert akan gagal total.
     const normalizeConfidence = (c: string): "high" | "medium" | "low" => {
       const lower = (c ?? "").toLowerCase().trim();
       if (lower === "high" || lower === "medium" || lower === "low") return lower;
-      return "medium"; // default aman kalau AI mengembalikan nilai tak terduga
+      return "medium";
     };
 
-    const rows = result.scores.map((s) => ({
-      submission_id,
-      question_id: s.question_id,
-      ai_score: s.ai_score,
-      ai_reasoning: `Awarded: ${s.marks_awarded.join(", ") || "-"} | Missed: ${
-        s.marks_missed.join(", ") || "-"
-      } | ${s.reasoning}`,
-      confidence: normalizeConfidence(s.confidence),
-      flagged_for_review: s.flagged_for_review,
-    }));
+    // Jaring pengaman: AI kadang salah kirim question_id (misal "1a" alih-alih
+    // UUID asli). question_id WAJIB berupa UUID valid (kolom database bertipe
+    // uuid), jadi kalau AI salah, cocokkan ulang lewat question_number —
+    // satu baris salah format akan menggagalkan SELURUH batch kalau dibiarkan.
+    const isValidUuid = (v: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v ?? "");
+
+    const questionByNumber = new Map(questions.map((q) => [q.question_number, q]));
+
+    const rows = result.scores
+      .map((s) => {
+        let questionId = s.question_id;
+        if (!isValidUuid(questionId)) {
+          const matched = questionByNumber.get(s.question_number);
+          if (!matched) {
+            console.error(
+              `Tidak bisa cocokkan question_id "${s.question_id}" (nomor "${s.question_number}") ke soal manapun — baris ini dilewati.`
+            );
+            return null;
+          }
+          questionId = matched.id;
+        }
+        return {
+          submission_id,
+          question_id: questionId,
+          ai_score: s.ai_score,
+          ai_reasoning: `Awarded: ${s.marks_awarded.join(", ") || "-"} | Missed: ${
+            s.marks_missed.join(", ") || "-"
+          } | ${s.reasoning}`,
+          confidence: normalizeConfidence(s.confidence),
+          flagged_for_review: s.flagged_for_review,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
 
     const { data: insertedRows, error: scoresError } = await supabase
       .from("question_scores")
@@ -113,7 +128,6 @@ export async function POST(req: NextRequest) {
       .select();
 
     if (scoresError) {
-      // Jangan gagal diam-diam — tandai submission error dan laporkan ke client
       await supabase
         .from("submissions")
         .update({ status: "error" })
@@ -127,20 +141,15 @@ export async function POST(req: NextRequest) {
 
     const totalScore = result.scores.reduce((sum, s) => sum + s.ai_score, 0);
 
-    // 6. Update submission: skor total, status, dan HAPUS foto (kebijakan privasi)
     await supabase
       .from("submissions")
       .update({
         status: "processed",
         total_ai_score: totalScore,
         ai_model_used: "claude-sonnet-5",
-        photo_url: null, // foto asli tidak disimpan permanen
+        photo_url: null,
       })
       .eq("id", submission_id);
-
-    // Catatan: jika photo_url menunjuk ke Supabase Storage, tambahkan juga
-    // panggilan supabase.storage.from(...).remove([...]) di sini untuk
-    // benar-benar menghapus file-nya, bukan cuma referensinya di database.
 
     return NextResponse.json({
       submission_id,
