@@ -107,9 +107,10 @@ export async function POST(req: NextRequest) {
       flagged_for_review: s.flagged_for_review,
     }));
 
-    const { error: scoresError } = await supabase
+    const { data: insertedRows, error: scoresError } = await supabase
       .from("question_scores")
-      .upsert(rows, { onConflict: "submission_id,question_id" });
+      .upsert(rows, { onConflict: "submission_id,question_id" })
+      .select();
 
     if (scoresError) {
       // Jangan gagal diam-diam — tandai submission error dan laporkan ke client
@@ -146,6 +147,8 @@ export async function POST(req: NextRequest) {
       student_name_read: result.student_name_read,
       total_score: totalScore,
       scores: result.scores,
+      debug_saved_rows_count: insertedRows?.length ?? 0,
+      debug_saved_rows: insertedRows,
     });
   } catch (err: any) {
     console.error("Grading error:", err);
