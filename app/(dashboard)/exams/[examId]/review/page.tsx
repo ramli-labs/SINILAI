@@ -1,5 +1,16 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
+
+// Service role client — dipakai HANYA setelah kepemilikan submission
+// diverifikasi lewat query RLS biasa di atas, sebagai jalur baca/tulis
+// yang tidak tergantung ketepatan policy RLS di tabel question_scores.
+function serviceClient() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 async function approveSubmissionAction(formData: FormData) {
   "use server";
@@ -12,6 +23,20 @@ async function approveSubmissionAction(formData: FormData) {
 
   const submissionId = formData.get("submissionId") as string;
   const examId = formData.get("examId") as string;
+
+  // Verifikasi submission ini memang milik kelas guru yang login,
+  // lewat query RLS biasa (bukan service role) — ini gerbang keamanannya.
+  const { data: ownedSubmission } = await supabase
+    .from("submissions")
+    .select("id")
+    .eq("id", submissionId)
+    .single();
+
+  if (!ownedSubmission) {
+    throw new Error("Submission tidak ditemukan atau bukan milik Anda");
+  }
+
+  const svc = serviceClient();
 
   // Ambil semua question_scores submission ini, terapkan override jika ada isi manual
   const scoreIds = formData.getAll("scoreId") as string[];
@@ -28,14 +53,14 @@ async function approveSubmissionAction(formData: FormData) {
     totalFinal += finalScore;
 
     if (overrideRaw !== "" && overrideRaw != null) {
-      await supabase
+      await svc
         .from("question_scores")
         .update({ teacher_override_score: finalScore })
         .eq("id", scoreId);
     }
   }
 
-  await supabase
+  await svc
     .from("submissions")
     .update({
       status: "reviewed",
@@ -71,8 +96,9 @@ export default async function ReviewPage({
     .order("created_at");
 
   const submissionIds = (submissions ?? []).map((s) => s.id);
+  const svc = serviceClient();
 
-  const { data: allScores, error: scoresError } = await supabase
+  const { data: allScores, error: scoresError } = await svc
     .from("question_scores")
     .select(
       "id, submission_id, question_id, ai_score, ai_reasoning, confidence, flagged_for_review, teacher_override_score"
@@ -80,13 +106,12 @@ export default async function ReviewPage({
     .in("submission_id", submissionIds.length > 0 ? submissionIds : [""]);
 
   if (scoresError) {
-    // Ditampilkan supaya kita tahu persis penyebabnya, bukan cuma "kosong"
     console.error("Gagal ambil question_scores:", scoresError.message);
   }
 
   // Ambil detail soal (nomor & max poin) terpisah, lalu gabung manual —
   // menghindari embed relasi PostgREST yang bisa gagal diam-diam.
-  const { data: examQuestions } = await supabase
+  const { data: examQuestions } = await svc
     .from("questions")
     .select("id, question_number, max_marks")
     .eq("exam_id", examId);
