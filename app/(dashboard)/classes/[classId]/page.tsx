@@ -70,11 +70,7 @@ export default async function ClassDetailPage({
           </h2>
           <div className="space-y-2">
             {exams?.map((e: any) => (
-              
-                key={e.id}
-                href={`/exams/${e.id}`}
-                className="block rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-sm hover:border-blue-300"
-              >
+              <a key={e.id} href={`/exams/${e.id}`} className="block rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-sm hover:border-blue-300">
                 <p className="font-medium">{e.title}</p>
                 <p className="text-gray-500">
                   {e.subjects?.name} · {e.exam_date ?? "belum dijadwalkan"}
