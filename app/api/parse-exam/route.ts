@@ -50,8 +50,15 @@ export async function POST(req: NextRequest) {
       return result.value;
     }
 
-    const qpText = await extractText(qpFile);
-    const msText = msFile ? await extractText(msFile) : null;
+    const qpTextRaw = await extractText(qpFile);
+    const msTextRaw = msFile ? await extractText(msFile) : null;
+
+    // Batasi panjang teks yang dikirim — dokumen Word dengan tabel kompleks
+    // bisa menghasilkan ekstraksi teks yang sangat panjang (whitespace/baris
+    // berulang), yang memboroskan token tanpa menambah informasi berguna.
+    const MAX_CHARS = 15000;
+    const qpText = qpTextRaw.slice(0, MAX_CHARS);
+    const msText = msTextRaw ? msTextRaw.slice(0, MAX_CHARS) : null;
 
     const userPrompt = `Question paper text:\n\n${qpText}\n\n${
       msText
@@ -68,7 +75,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 8000,
+        max_tokens: 8192,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
       }),
@@ -83,7 +90,11 @@ export async function POST(req: NextRequest) {
     const textBlock = data.content?.find((c: any) => c.type === "text");
 
     if (!textBlock?.text) {
-      throw new Error("Claude tidak mengembalikan teks");
+      throw new Error(
+        `Claude tidak mengembalikan teks. stop_reason: ${data.stop_reason ?? "?"}, content types: ${
+          (data.content ?? []).map((c: any) => c.type).join(",") || "(kosong)"
+        }`
+      );
     }
 
     return NextResponse.json({ questionsRaw: textBlock.text.trim() });
