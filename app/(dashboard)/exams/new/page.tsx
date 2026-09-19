@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import ExamQuestionsInput from "@/components/ExamQuestionsInput";
 
 async function createExamAction(formData: FormData) {
   "use server";
@@ -16,10 +17,6 @@ async function createExamAction(formData: FormData) {
   const examDate = formData.get("examDate") as string;
   const questionsRaw = formData.get("questionsRaw") as string;
 
-  // Format input soal + mark scheme:
-  // Q: <nomor soal> | <max marks> | <teks soal opsional>
-  // MS: <kode> | <poin> | <deskripsi jawaban diterima>
-  // (baris MS berikutnya masih milik Q terakhir di atasnya)
   const lines = questionsRaw.split("\n").map((l) => l.trim());
 
   type ParsedQuestion = {
@@ -180,24 +177,11 @@ export default async function NewExamPage({
             Soal &amp; Mark Scheme
           </label>
           <p className="mb-2 text-xs text-gray-500">
-            Format: baris <code>Q: nomor | max poin | teks soal (opsional)</code>{" "}
-            diikuti satu atau lebih baris{" "}
-            <code>MS: kode | poin | jawaban diterima</code>.
+            Upload file Word soal (dan mark scheme kalau ada) untuk diurai
+            otomatis oleh AI, atau ketik manual dengan format{" "}
+            <code>Q:</code>/<code>MS:</code>.
           </p>
-          <textarea
-            name="questionsRaw"
-            required
-            rows={16}
-            placeholder={
-              "Q: 1(a) | 1 | State the equation linking density, mass and volume\n" +
-              "MS: B1 | 1 | density = mass/volume\n\n" +
-              "Q: 1(b) | 3 | Calculate the volume of the steel cube\n" +
-              "MS: C1 | 1 | uses volume = mass/density\n" +
-              "MS: C2 | 1 | correct substitution 110/7900\n" +
-              "MS: A3 | 1 | 0.014 m3 (accept 0.0139-0.014)"
-            }
-            className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm"
-          />
+          <ExamQuestionsInput />
         </div>
 
         <button
