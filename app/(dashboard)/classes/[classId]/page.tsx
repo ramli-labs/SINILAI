@@ -50,10 +50,7 @@ export default async function ClassDetailPage({
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold">{classData?.name}</h1>
         <div className="flex gap-2">
-          
-            href={`/exams/new?classId=${classId}`}
-            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-          >
+          <a href={`/exams/new?classId=${classId}`} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
             + Ujian Baru
           </a>
           <DeleteClassButton
