@@ -74,16 +74,10 @@ export default async function ExamDetailPage({
       </p>
 
       <div className="mb-6 flex gap-3">
-        
-          href={`/exams/${examId}/upload`}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
+        <a href={`/exams/${examId}/upload`} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
           Upload Foto Jawaban
         </a>
-        
-          href={`/exams/${examId}/review`}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50"
-        >
+        <a href={`/exams/${examId}/review`} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">
           Review Nilai
         </a>
       </div>
