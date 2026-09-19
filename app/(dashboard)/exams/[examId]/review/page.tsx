@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import ExportExcelButton from "@/components/ExportExcelButton";
 
-// Service role client — dipakai HANYA setelah kepemilikan submission
-// diverifikasi lewat query RLS biasa di atas, sebagai jalur baca/tulis
-// yang tidak tergantung ketepatan policy RLS di tabel question_scores.
 function serviceClient() {
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,8 +22,6 @@ async function approveSubmissionAction(formData: FormData) {
   const submissionId = formData.get("submissionId") as string;
   const examId = formData.get("examId") as string;
 
-  // Verifikasi submission ini memang milik kelas guru yang login,
-  // lewat query RLS biasa (bukan service role) — ini gerbang keamanannya.
   const { data: ownedSubmission } = await supabase
     .from("submissions")
     .select("id")
@@ -38,7 +34,6 @@ async function approveSubmissionAction(formData: FormData) {
 
   const svc = serviceClient();
 
-  // Ambil semua question_scores submission ini, terapkan override jika ada isi manual
   const scoreIds = formData.getAll("scoreId") as string[];
 
   let totalFinal = 0;
@@ -109,23 +104,55 @@ export default async function ReviewPage({
     console.error("Gagal ambil question_scores:", scoresError.message);
   }
 
-  // Ambil detail soal (nomor & max poin) terpisah, lalu gabung manual —
-  // menghindari embed relasi PostgREST yang bisa gagal diam-diam.
   const { data: examQuestions } = await svc
     .from("questions")
     .select("id, question_number, max_marks")
-    .eq("exam_id", examId);
+    .eq("exam_id", examId)
+    .order("order_index");
 
   const questionById = new Map(
     (examQuestions ?? []).map((q) => [q.id, q])
   );
 
+  const exportRows = (submissions ?? []).map((sub: any) => {
+    const scores = (allScores ?? []).filter((sc) => sc.submission_id === sub.id);
+    const scoreByQuestionId = new Map(scores.map((sc: any) => [sc.question_id, sc]));
+
+    const row: Record<string, any> = {
+      "No. Absen": sub.students?.roll_number ?? "",
+      "Nama Siswa": sub.students?.full_name ?? "",
+    };
+
+    for (const q of examQuestions ?? []) {
+      const sc: any = scoreByQuestionId.get(q.id);
+      const finalScore = sc?.teacher_override_score ?? sc?.ai_score;
+      row[q.question_number] = finalScore ?? "-";
+    }
+
+    row["Total"] = sub.total_final_score ?? sub.total_ai_score ?? "-";
+    row["Status"] = sub.status;
+
+    return row;
+  });
+
   return (
     <div>
-      <h1 className="mb-1 text-lg font-semibold">Review Nilai</h1>
-      <p className="mb-4 text-sm text-gray-500">
-        {exam?.title} · Total {exam?.total_marks} poin
-      </p>
+      <div className="mb-1 flex items-start justify-between">
+        <div>
+          <h1 className="text-lg font-semibold">Review Nilai</h1>
+          <p className="text-sm text-gray-500">
+            {exam?.title} · Total {exam?.total_marks} poin
+          </p>
+        </div>
+        {exportRows.length > 0 && (
+          <ExportExcelButton
+            data={exportRows}
+            filename={`Nilai_${(exam?.title ?? "ujian").replace(/\s+/g, "_")}.xlsx`}
+            sheetName="Nilai"
+          />
+        )}
+      </div>
+      <div className="mb-4" />
 
       <div className="space-y-4">
         {submissions?.map((sub: any) => {
