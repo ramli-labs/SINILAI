@@ -1,4 +1,23 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import DeleteClassButton from "@/components/DeleteClassButton";
+
+async function deleteClassAction(formData: FormData) {
+  "use server";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const classId = formData.get("classId") as string;
+
+  const { error } = await supabase.from("classes").delete().eq("id", classId);
+  if (error) throw new Error(error.message);
+
+  redirect("/classes");
+}
 
 export default async function ClassDetailPage({
   params,
@@ -30,12 +49,21 @@ export default async function ClassDetailPage({
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold">{classData?.name}</h1>
-        <a
-          href={`/exams/new?classId=${classId}`}
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-        >
-          + Ujian Baru
-        </a>
+        <div className="flex gap-2">
+          
+            href={`/exams/new?classId=${classId}`}
+            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+          >
+            + Ujian Baru
+          </a>
+          <DeleteClassButton
+            classId={classId}
+            className={classData?.name ?? ""}
+            studentCount={students?.length ?? 0}
+            examCount={exams?.length ?? 0}
+            deleteAction={deleteClassAction}
+          />
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -45,7 +73,7 @@ export default async function ClassDetailPage({
           </h2>
           <div className="space-y-2">
             {exams?.map((e: any) => (
-              <a
+              
                 key={e.id}
                 href={`/exams/${e.id}`}
                 className="block rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-sm hover:border-blue-300"
