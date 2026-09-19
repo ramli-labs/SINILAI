@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import PhotoUpload from "@/components/PhotoUpload";
+import UploadModeTabs from "@/components/UploadModeTabs";
 
 export default async function UploadPage({
   params,
@@ -22,11 +22,11 @@ export default async function UploadPage({
     .order("roll_number");
 
   return (
-    <div className="max-w-md">
+    <div className="max-w-2xl">
       <h1 className="mb-1 text-lg font-semibold">Upload Foto Jawaban</h1>
       <p className="mb-4 text-sm text-gray-500">{exam?.title}</p>
 
-      <PhotoUpload examId={examId} students={students ?? []} />
+      <UploadModeTabs examId={examId} students={students ?? []} />
     </div>
   );
 }
