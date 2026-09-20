@@ -174,3 +174,138 @@ export default async function ClassTeachersPage({
 
       {reset === "success" && (
         <p className="mb-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+          Password berhasil direset — sampaikan password baru ke guru terkait.
+        </p>
+      )}
+
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-2 text-sm font-semibold text-gray-700">
+          Guru dengan Akses
+        </h2>
+        {teacherMap.size === 0 && (
+          <p className="text-sm text-gray-400">Belum ada guru lain ditambahkan.</p>
+        )}
+        <div className="space-y-3">
+          {Array.from(teacherMap.entries()).map(([teacherId, t]) => (
+            <div key={teacherId} className="rounded-md border border-gray-100 p-3 text-sm">
+              <p className="font-medium">{t.full_name}</p>
+              <p className="mb-2 text-gray-500">
+                {t.email} · {t.subjects.join(", ")}
+              </p>
+
+              <details className="mb-2">
+                <summary className="cursor-pointer text-xs text-blue-600">
+                  Reset password
+                </summary>
+                <form action={resetPasswordAction} className="mt-2 flex items-center gap-2">
+                  <input type="hidden" name="classId" value={classId} />
+                  <input type="hidden" name="teacherId" value={teacherId} />
+                  <input
+                    type="text"
+                    name="newPassword"
+                    required
+                    minLength={6}
+                    placeholder="Password baru (min. 6 karakter)"
+                    className="rounded-md border border-gray-300 px-2 py-1 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md bg-amber-600 px-3 py-1 text-xs font-medium text-white hover:bg-amber-700"
+                  >
+                    Reset
+                  </button>
+                </form>
+              </details>
+
+              <div className="flex flex-wrap gap-2">
+                {access
+                  ?.filter((a) => a.teacher_id === teacherId)
+                  .map((a) => (
+                    <form key={a.subject_id} action={removeAccessAction}>
+                      <input type="hidden" name="classId" value={classId} />
+                      <input type="hidden" name="teacherId" value={teacherId} />
+                      <input type="hidden" name="subjectId" value={a.subject_id} />
+                      <button
+                        type="submit"
+                        className="rounded-md bg-gray-100 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                      >
+                        Hapus akses {(a as any).subjects?.name}
+                      </button>
+                    </form>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold text-gray-700">
+          Tambah Guru Baru
+        </h2>
+        <p className="mb-3 text-xs text-gray-500">
+          Kalau email ini sudah pernah didaftarkan sebelumnya (untuk mapel/kelas
+          lain), sistem otomatis pakai akun yang sama — tidak buat akun baru.
+        </p>
+        <form action={addTeacherAction} className="space-y-3">
+          <input type="hidden" name="classId" value={classId} />
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Nama Lengkap</label>
+            <input
+              name="fullName"
+              required
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Email</label>
+            <input
+              type="email"
+              name="email"
+              required
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              Password Awal (beri tahu ke guru terkait setelah dibuat)
+            </label>
+            <input
+              type="text"
+              name="password"
+              required
+              minLength={6}
+              placeholder="Minimal 6 karakter"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Kalau email sudah punya akun, kolom ini diabaikan.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              Akses Mapel (hanya mapel ini yang bisa dikelola)
+            </label>
+            <select
+              name="subjectId"
+              required
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              {subjects?.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <SubmitButton pendingText="Menambahkan...">Tambah Guru</SubmitButton>
+        </form>
+      </div>
+    </div>
+  );
+}
