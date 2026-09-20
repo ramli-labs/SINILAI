@@ -140,7 +140,7 @@ export default async function ParentReportPage({
           >
             <div className="mb-4 border-b border-gray-200 pb-3 text-center">
               <img
-                src="/LOGO_GABUNG_LABS.png"
+                src="/logo.png"
                 alt="School Logo"
                 className="mx-auto mb-2 h-10 object-contain"
               />
