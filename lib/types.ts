@@ -31,7 +31,7 @@ export interface Submission {
   id: string;
   exam_id: string;
   student_id: string;
-  photo_url: string | null;
+  photo_urls: string[] | null;
   status: "pending" | "processing" | "processed" | "reviewed" | "error";
   ai_model_used: string | null;
   total_ai_score: number | null;
