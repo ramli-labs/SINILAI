@@ -17,6 +17,7 @@ async function createExamAction(formData: FormData) {
   const title = formData.get("title") as string;
   const examDate = formData.get("examDate") as string;
   const questionsRaw = formData.get("questionsRaw") as string;
+  const pagesPerSubmission = parseInt(formData.get("pagesPerSubmission") as string, 10) || 1;
 
   const lines = questionsRaw.split("\n").map((l) => l.trim());
 
@@ -62,6 +63,7 @@ async function createExamAction(formData: FormData) {
       title,
       exam_date: examDate || null,
       total_marks: totalMarks,
+      pages_per_submission: pagesPerSubmission,
       created_by: user.id,
     })
     .select("id")
@@ -169,6 +171,24 @@ export default async function NewExamPage({
           <input
             type="date"
             name="examDate"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">
+            Jumlah Halaman per Siswa
+          </label>
+          <p className="mb-1 text-xs text-gray-500">
+            Isi 1 kalau siswa jawab di lembar terpisah. Isi sesuai jumlah
+            halaman soal kalau siswa menjawab langsung di kertas soal (misal 14).
+          </p>
+          <input
+            type="number"
+            name="pagesPerSubmission"
+            min={1}
+            defaultValue={1}
+            required
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
