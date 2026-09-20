@@ -11,7 +11,7 @@ export default async function UploadPage({
 
   const { data: exam } = await supabase
     .from("exams")
-    .select("id, title, class_id")
+    .select("id, title, class_id, pages_per_submission")
     .eq("id", examId)
     .single();
 
@@ -24,9 +24,15 @@ export default async function UploadPage({
   return (
     <div className="max-w-2xl">
       <h1 className="mb-1 text-lg font-semibold">Upload Foto Jawaban</h1>
-      <p className="mb-4 text-sm text-gray-500">{exam?.title}</p>
+      <p className="mb-4 text-sm text-gray-500">
+        {exam?.title} · {exam?.pages_per_submission ?? 1} halaman per siswa
+      </p>
 
-      <UploadModeTabs examId={examId} students={students ?? []} />
+      <UploadModeTabs
+        examId={examId}
+        students={students ?? []}
+        pagesPerSubmission={exam?.pages_per_submission ?? 1}
+      />
     </div>
   );
 }
