@@ -17,6 +17,7 @@ async function updateExamAction(formData: FormData) {
   const title = formData.get("title") as string;
   const examDate = formData.get("examDate") as string;
   const questionsRaw = formData.get("questionsRaw") as string;
+  const pagesPerSubmission = parseInt(formData.get("pagesPerSubmission") as string, 10) || 1;
 
   const lines = questionsRaw.split("\n").map((l) => l.trim());
 
@@ -61,6 +62,7 @@ async function updateExamAction(formData: FormData) {
       title,
       exam_date: examDate || null,
       total_marks: totalMarks,
+      pages_per_submission: pagesPerSubmission,
     })
     .eq("id", examId);
   if (examError) throw new Error(examError.message);
@@ -159,7 +161,7 @@ export default async function EditExamPage({
 
   const { data: exam } = await supabase
     .from("exams")
-    .select("id, title, exam_date, subject_id, class_id")
+    .select("id, title, exam_date, subject_id, class_id, pages_per_submission")
     .eq("id", examId)
     .single();
 
@@ -230,6 +232,20 @@ export default async function EditExamPage({
             type="date"
             name="examDate"
             defaultValue={exam.exam_date ?? ""}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">
+            Jumlah Halaman per Siswa
+          </label>
+          <input
+            type="number"
+            name="pagesPerSubmission"
+            min={1}
+            defaultValue={exam.pages_per_submission ?? 1}
+            required
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
