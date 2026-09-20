@@ -7,7 +7,7 @@ function serviceClient() {
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  );className="mx-auto mb-2 h-20 object-contain"
 }
 
 type Category = "baik" | "penguatan" | "kurang";
