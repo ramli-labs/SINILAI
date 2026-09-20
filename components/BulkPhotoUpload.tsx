@@ -20,6 +20,7 @@ interface QueueItem {
   photoUrls?: string[];
   totalScore?: number;
   scores?: any[];
+  modelUsed?: string;
   errorMsg?: string;
   selectedStudentId?: string;
 }
@@ -165,6 +166,7 @@ export default function BulkPhotoUpload({
                   photoUrls: data.photo_urls,
                   totalScore: data.total_score,
                   scores: data.scores,
+                  modelUsed: data.model_used,
                 }
             : it
         )
@@ -194,6 +196,7 @@ export default function BulkPhotoUpload({
           photo_urls: item.photoUrls,
           total_score: item.totalScore,
           scores: item.scores,
+          model_used: item.modelUsed,
         }),
       });
       const data = await res.json();
