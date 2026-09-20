@@ -1,10 +1,10 @@
 // app/api/grade-bulk/route.ts
 // Dipakai oleh mode "Upload Banyak Sekaligus". Beda dari /api/grade biasa:
 // di sini kita BELUM tahu ini punya siswa siapa saat foto di-upload — jadi
-// endpoint ini menilai dulu (termasuk baca nama dari foto), lalu mencoba
-// mencocokkan nama itu ke daftar siswa kelas. Kalau yakin, submission
-// langsung disimpan. Kalau ragu, hasil dikembalikan ke client supaya guru
-// pilih manual (lihat /api/finalize-bulk-match).
+// endpoint ini menilai dulu (termasuk baca nama dari foto, lintas semua
+// halaman), lalu mencoba mencocokkan nama itu ke daftar siswa kelas. Kalau
+// yakin, submission langsung disimpan. Kalau ragu, hasil dikembalikan ke
+// client supaya guru pilih manual (lihat /api/finalize-bulk-match).
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -38,11 +38,11 @@ function similarity(a: string, b: string): number {
 
 export async function POST(req: NextRequest) {
   try {
-    const { exam_id, photo_url } = await req.json();
+    const { exam_id, photo_urls } = await req.json();
 
-    if (!exam_id || !photo_url) {
+    if (!exam_id || !photo_urls || !Array.isArray(photo_urls) || photo_urls.length === 0) {
       return NextResponse.json(
-        { error: "exam_id dan photo_url wajib diisi" },
+        { error: "exam_id dan photo_urls (array) wajib diisi" },
         { status: 400 }
       );
     }
@@ -77,14 +77,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const photoResponse = await fetch(photo_url);
-    const photoBuffer = await photoResponse.arrayBuffer();
-    const imageBase64 = Buffer.from(photoBuffer).toString("base64");
-    const contentType = photoResponse.headers.get("content-type") ?? "image/jpeg";
+    const images = await Promise.all(
+      (photo_urls as string[]).map(async (url) => {
+        const photoResponse = await fetch(url);
+        const photoBuffer = await photoResponse.arrayBuffer();
+        const base64 = Buffer.from(photoBuffer).toString("base64");
+        const mediaType = (photoResponse.headers.get("content-type") ??
+          "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
+        return { base64, mediaType };
+      })
+    );
 
     const result = await gradeSubmission({
-      imageBase64,
-      imageMediaType: contentType as "image/jpeg" | "image/png" | "image/webp",
+      images,
       questions,
       markSchemeItems: markSchemeItems ?? [],
     });
@@ -117,7 +122,7 @@ export async function POST(req: NextRequest) {
           {
             exam_id,
             student_id: bestMatch.id,
-            photo_url,
+            photo_urls,
             status: "processing",
           },
           { onConflict: "exam_id,student_id" }
@@ -148,7 +153,7 @@ export async function POST(req: NextRequest) {
       student_name_read: result.student_name_read,
       best_guess: bestMatch,
       best_guess_score: bestScore,
-      photo_url,
+      photo_urls,
       total_score: totalScore,
       scores: result.scores,
     });
@@ -214,7 +219,7 @@ async function saveScores(
       status: "processed",
       total_ai_score: totalScore,
       ai_model_used: "claude-sonnet-5",
-      photo_url: null,
+      photo_urls: null,
     })
     .eq("id", submissionId);
 
