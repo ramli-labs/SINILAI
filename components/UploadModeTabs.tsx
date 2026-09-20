@@ -13,9 +13,11 @@ interface Student {
 export default function UploadModeTabs({
   examId,
   students,
+  pagesPerSubmission,
 }: {
   examId: string;
   students: Student[];
+  pagesPerSubmission: number;
 }) {
   const [mode, setMode] = useState<"single" | "bulk">("bulk");
 
@@ -45,7 +47,7 @@ export default function UploadModeTabs({
       {mode === "single" ? (
         <PhotoUpload examId={examId} students={students} />
       ) : (
-        <BulkPhotoUpload examId={examId} students={students} />
+        <BulkPhotoUpload examId={examId} students={students} pagesPerSubmission={pagesPerSubmission} />
       )}
     </div>
   );
