@@ -56,6 +56,9 @@ export default async function ClassDetailPage({
           <a href={`/classes/${classId}/parent-report`} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
             Laporan Orang Tua
           </a>
+          <a href={`/classes/${classId}/teachers`} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
+            Kelola Guru
+          </a>
           <DeleteClassButton
             classId={classId}
             className={classData?.name ?? ""}
