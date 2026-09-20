@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import PrintReportButton from "@/components/PrintReportButton";
+import ExportPdfZipButton from "@/components/ExportPdfZipButton";
 
 function serviceClient() {
   return createServiceClient(
@@ -118,30 +119,42 @@ export default async function ParentReportPage({
         <h1 className="text-lg font-semibold">
           Laporan Orang Tua — {classData.name}
         </h1>
-        <PrintReportButton />
+        <div className="flex gap-2">
+          <ExportPdfZipButton
+            entries={report.map(({ student }) => ({
+              elementId: `report-card-${student.id}`,
+              fileName: `Laporan_${student.full_name.replace(/\s+/g, "_")}`,
+            }))}
+            zipFileName={`Laporan_${classData.name.replace(/\s+/g, "_")}.zip`}
+          />
+          <PrintReportButton />
+        </div>
       </div>
 
       <div className="space-y-8">
         {report.map(({ student, subjects }) => (
           <div
             key={student.id}
+            id={`report-card-${student.id}`}
             className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm print:break-after-page print:border-0 print:shadow-none"
           >
             <div className="mb-4 border-b border-gray-200 pb-3 text-center">
-              <p className="text-xs uppercase tracking-wide text-gray-400">
-                [Logo Sekolah]
-              </p>
-              <h2 className="text-base font-semibold">Laporan Hasil Belajar</h2>
+              <img
+                src="/LOGO_GABUNG_LABS.png"
+                alt="School Logo"
+                className="mx-auto mb-2 h-10 object-contain"
+              />
+              <h2 className="text-base font-semibold">Student Learning Report</h2>
             </div>
 
             <p className="mb-4 text-sm">
-              <span className="font-medium">Nama:</span> {student.full_name} ·{" "}
-              <span className="font-medium">Kelas:</span> {classData.name}
+              <span className="font-medium">Name:</span> {student.full_name} ·{" "}
+              <span className="font-medium">Class:</span> {classData.name}
             </p>
 
             {subjects.length === 0 && (
               <p className="text-sm text-gray-400">
-                Belum ada nilai ujian yang tersimpan untuk siswa ini.
+                No exam results have been recorded for this student yet.
               </p>
             )}
 
@@ -159,7 +172,7 @@ export default async function ParentReportPage({
                   {baik.length > 0 && (
                     <div className="mb-2">
                       <p className="text-sm font-medium text-green-700">
-                        ✅ Sudah menguasai:
+                        ✅ Mastered:
                       </p>
                       <ul className="ml-5 list-disc text-sm text-gray-700">
                         {baik.map((i, idx) => (
@@ -172,7 +185,7 @@ export default async function ParentReportPage({
                   {penguatan.length > 0 && (
                     <div className="mb-2">
                       <p className="text-sm font-medium text-amber-700">
-                        ⚠️ Perlu penguatan:
+                        ⚠️ Needs Reinforcement:
                       </p>
                       <ul className="ml-5 list-disc text-sm text-gray-700">
                         {penguatan.map((i, idx) => (
@@ -193,7 +206,7 @@ export default async function ParentReportPage({
                   {kurang.length > 0 && (
                     <div className="mb-2">
                       <p className="text-sm font-medium text-red-700">
-                        ❌ Perlu pemahaman lebih:
+                        ❌ Needs More Understanding:
                       </p>
                       <ul className="ml-5 list-disc text-sm text-gray-700">
                         {kurang.map((i, idx) => (
