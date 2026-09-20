@@ -80,10 +80,7 @@ export default async function ParentReportPage({
   const questionById = new Map((allQuestions ?? []).map((q) => [q.id, q]));
 
   const report = (students ?? []).map((student) => {
-    const subjectMap = new Map
-      string,
-      { question_number: string; question_text: string | null; category: Category; reasoning: string }[]
-    >();
+    const subjectMap = new Map<string, { question_number: string; question_text: string | null; category: Category; reasoning: string }[]>();
 
     for (const exam of exams ?? []) {
       const subjectName = (exam as any).subjects?.name ?? "Lainnya";
