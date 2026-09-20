@@ -14,7 +14,7 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { exam_id, student_id, photo_url, total_score, scores } = await req.json();
+    const { exam_id, student_id, photo_urls, total_score, scores } = await req.json();
 
     if (!exam_id || !student_id || !scores) {
       return NextResponse.json(
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
         {
           exam_id,
           student_id,
-          photo_url: photo_url ?? null,
+          photo_urls: photo_urls ?? null,
           status: "processing",
         },
         { onConflict: "exam_id,student_id" }
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
         status: "processed",
         total_ai_score: total_score,
         ai_model_used: "claude-sonnet-5",
-        photo_url: null,
+        photo_urls: null,
       })
       .eq("id", submission.id);
 
