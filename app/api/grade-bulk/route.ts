@@ -49,13 +49,15 @@ export async function POST(req: NextRequest) {
 
     const { data: exam } = await supabase
       .from("exams")
-      .select("id, class_id")
+      .select("id, class_id, subject_id, subjects(default_model)")
       .eq("id", exam_id)
       .single();
 
     if (!exam) {
       return NextResponse.json({ error: "Ujian tidak ditemukan" }, { status: 404 });
     }
+
+    const modelToUse = (exam as any).subjects?.default_model ?? "claude-sonnet-5";
 
     const { data: questions } = await supabase
       .from("questions")
@@ -92,6 +94,7 @@ export async function POST(req: NextRequest) {
       images,
       questions,
       markSchemeItems: markSchemeItems ?? [],
+      model: modelToUse,
     });
 
     const { data: students } = await supabase
@@ -134,7 +137,7 @@ export async function POST(req: NextRequest) {
         throw new Error(subError?.message ?? "Gagal simpan submission");
       }
 
-      const saveResult = await saveScores(submission.id, questions, result, totalScore);
+      const saveResult = await saveScores(submission.id, questions, result, totalScore, modelToUse);
       if (saveResult.error) {
         return NextResponse.json({ error: saveResult.error }, { status: 500 });
       }
@@ -156,6 +159,7 @@ export async function POST(req: NextRequest) {
       photo_urls,
       total_score: totalScore,
       scores: result.scores,
+      model_used: modelToUse,
     });
   } catch (err: any) {
     console.error("Grade-bulk error:", err);
@@ -170,7 +174,8 @@ async function saveScores(
   submissionId: string,
   questions: Question[],
   result: Awaited<ReturnType<typeof gradeSubmission>>,
-  totalScore: number
+  totalScore: number,
+  modelUsed: string
 ): Promise<{ error?: string }> {
   const normalizeConfidence = (c: string): "high" | "medium" | "low" => {
     const lower = (c ?? "").toLowerCase().trim();
@@ -218,7 +223,7 @@ async function saveScores(
     .update({
       status: "processed",
       total_ai_score: totalScore,
-      ai_model_used: "claude-sonnet-5",
+      ai_model_used: modelUsed,
       photo_urls: null,
     })
     .eq("id", submissionId);
