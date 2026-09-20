@@ -2,11 +2,17 @@
 
 import { useState } from "react";
 
-export default function ExamQuestionsInput() {
-  const [mode, setMode] = useState<"upload" | "manual">("upload");
+export default function ExamQuestionsInput({
+  initialValue = "",
+  initialMode = "upload",
+}: {
+  initialValue?: string;
+  initialMode?: "upload" | "manual";
+}) {
+  const [mode, setMode] = useState<"upload" | "manual">(initialMode);
   const [qpFile, setQpFile] = useState<File | null>(null);
   const [msFile, setMsFile] = useState<File | null>(null);
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +35,7 @@ export default function ExamQuestionsInput() {
       if (!res.ok) throw new Error(data.error ?? "Gagal mengurai dokumen");
 
       setValue(data.questionsRaw);
-      setMode("manual"); // pindah ke tampilan textarea supaya bisa direview/diedit
+      setMode("manual");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -123,9 +129,6 @@ export default function ExamQuestionsInput() {
         />
       )}
 
-      {/* Textarea cadangan saat masih di mode upload (belum di-parse) — supaya
-          field questionsRaw tetap ada di form. Tidak diberi 'required' karena
-          browser menolak validasi pada elemen tersembunyi. */}
       {mode === "upload" && (
         <textarea name="questionsRaw" value={value} readOnly hidden />
       )}
