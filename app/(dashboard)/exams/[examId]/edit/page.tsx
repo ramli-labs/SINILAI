@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ExamQuestionsInput from "@/components/ExamQuestionsInput";
+import SubmitButton from "@/components/SubmitButton";
 
 async function updateExamAction(formData: FormData) {
   "use server";
@@ -240,12 +241,7 @@ export default async function EditExamPage({
           <ExamQuestionsInput initialValue={initialText} initialMode="manual" />
         </div>
 
-        <button
-          type="submit"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Simpan Perubahan
-        </button>
+        <SubmitButton pendingText="Menyimpan Perubahan...">Simpan Perubahan</SubmitButton>
       </form>
     </div>
   );
