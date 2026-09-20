@@ -7,7 +7,7 @@ function serviceClient() {
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );className="mx-auto mb-2 h-20 object-contain"
+  );
 }
 
 type Category = "baik" | "penguatan" | "kurang";
@@ -142,7 +142,7 @@ export default async function ParentReportPage({
               <img
                 src="/logo.png"
                 alt="School Logo"
-                className="mx-auto mb-2 h-10 object-contain"
+                className="mx-auto mb-2 h-20 object-contain"
               />
               <h2 className="text-base font-semibold">Student Learning Report</h2>
             </div>
