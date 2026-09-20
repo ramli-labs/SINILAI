@@ -85,6 +85,9 @@ export default async function ExamDetailPage({
         <a href={`/exams/${examId}/review`} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">
           Review Nilai
         </a>
+        <a href={`/exams/${examId}/class-summary`} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">
+          Rekap Kelas
+        </a>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
