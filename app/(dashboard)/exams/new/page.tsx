@@ -185,12 +185,7 @@ export default async function NewExamPage({
           <ExamQuestionsInput />
         </div>
 
-        <button
-          type="submit"
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Simpan Ujian
-        </button>
+        <SubmitButton pendingText="Menyimpan...">Simpan Ujian</SubmitButton>
       </form>
     </div>
   );
