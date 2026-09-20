@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ExamQuestionsInput from "@/components/ExamQuestionsInput";
+import SubmitButton from "@/components/SubmitButton";
 
 async function createExamAction(formData: FormData) {
   "use server";
