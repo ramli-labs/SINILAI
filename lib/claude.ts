@@ -6,7 +6,7 @@
 import type { MarkSchemeItem, Question } from "./types";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = "claude-sonnet-5";
+const DEFAULT_MODEL = "claude-sonnet-5";
 
 export interface QuestionScoreResult {
   question_id: string;
@@ -30,6 +30,7 @@ interface GradeSubmissionInput {
   images: { base64: string; mediaType: "image/jpeg" | "image/png" | "image/webp" }[];
   questions: Question[];
   markSchemeItems: MarkSchemeItem[];
+  model?: string;
 }
 
 function buildSystemPrompt(): string {
@@ -104,7 +105,7 @@ Include one entry in "scores" for every question listed above, using its exact q
 export async function gradeSubmission(
   input: GradeSubmissionInput
 ): Promise<GradingResponse> {
-  const { images, questions, markSchemeItems } = input;
+  const { images, questions, markSchemeItems, model } = input;
 
   const imageBlocks = images.map((img) => ({
     type: "image" as const,
@@ -123,7 +124,7 @@ export async function gradeSubmission(
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: model ?? DEFAULT_MODEL,
       max_tokens: 4000,
       system: buildSystemPrompt(),
       messages: [
