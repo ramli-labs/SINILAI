@@ -27,17 +27,16 @@ export interface GradingResponse {
 }
 
 interface GradeSubmissionInput {
-  imageBase64: string;
-  imageMediaType: "image/jpeg" | "image/png" | "image/webp";
+  images: { base64: string; mediaType: "image/jpeg" | "image/png" | "image/webp" }[];
   questions: Question[];
   markSchemeItems: MarkSchemeItem[];
 }
 
 function buildSystemPrompt(): string {
-  return `You are an experienced Cambridge IGCSE examiner grading a student's handwritten physics answer sheet.
+  return `You are an experienced Cambridge IGCSE examiner grading a student's handwritten physics answer sheet. The student wrote their answers directly on the question paper itself, so you will receive MULTIPLE PAGE IMAGES in order (page 1, page 2, page 3, ...) — different questions and their answers may appear on different pages. Look across ALL provided pages to find each question's answer before scoring it; do not assume every question is on the first page.
 
 RULES YOU MUST FOLLOW:
-1. Read the handwritten answers carefully. Student answers are in English (Cambridge medium of instruction).
+1. Read the handwritten answers carefully across all pages provided. Student answers are in English (Cambridge medium of instruction).
 2. Grade STRICTLY according to the mark scheme provided — award marks only for content that matches an accepted answer, not for answers that merely sound plausible.
 3. Distinguish carefully between similar-but-wrong physics concepts (e.g. "heavier" vs "denser", "mass" vs "weight") — these are common misconceptions and must NOT receive credit unless the mark scheme explicitly accepts them.
 4. For calculation questions, check method marks (e.g. "C" codes) and answer marks (e.g. "A" codes) SEPARATELY and STRICTLY:
@@ -47,8 +46,9 @@ RULES YOU MUST FOLLOW:
    - A student can get method marks even with a wrong final answer if the working shown is correct, and can also get the final answer mark via an "error carried forward" from an earlier mistake if the mark scheme allows it — but never grant marks for steps that were skipped.
    - When in doubt whether a step was skipped or merely combined into one line, treat it as skipped (do not award it), and lower confidence to "medium" for that item rather than silently granting the mark.
 5. If handwriting is unclear, or a case is genuinely ambiguous (e.g. a method mark that is implied but not explicitly written), set confidence to "low" or "medium" and flag it for teacher review — do NOT guess silently.
-6. If you can read a student name/identifier on the sheet, report it in student_name_read so the teacher can verify the match — but do not use it to influence scoring.
-7. Respond ONLY with valid JSON matching the exact schema given in the user message. No preamble, no markdown fences, no explanation outside the JSON.`;
+6. If you can read a student name/identifier on ANY of the pages (often the first page), report it in student_name_read so the teacher can verify the match — but do not use it to influence scoring.
+7. If a question's answer genuinely cannot be found on any provided page, score it 0, set confidence to "low", and note in flag_reason that no answer was found.
+8. Respond ONLY with valid JSON matching the exact schema given in the user message. No preamble, no markdown fences, no explanation outside the JSON.`;
 }
 
 function buildUserPrompt(
@@ -72,7 +72,7 @@ function buildUserPrompt(
     })
     .join("\n\n");
 
-  return `Grade the attached answer sheet image against this mark scheme:
+  return `Grade the attached answer sheet (multiple page images, in order) against this mark scheme:
 
 ${questionBlocks}
 
@@ -104,7 +104,16 @@ Include one entry in "scores" for every question listed above, using its exact q
 export async function gradeSubmission(
   input: GradeSubmissionInput
 ): Promise<GradingResponse> {
-  const { imageBase64, imageMediaType, questions, markSchemeItems } = input;
+  const { images, questions, markSchemeItems } = input;
+
+  const imageBlocks = images.map((img) => ({
+    type: "image" as const,
+    source: {
+      type: "base64" as const,
+      media_type: img.mediaType,
+      data: img.base64,
+    },
+  }));
 
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
@@ -115,20 +124,13 @@ export async function gradeSubmission(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 2000,
+      max_tokens: 4000,
       system: buildSystemPrompt(),
       messages: [
         {
           role: "user",
           content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: imageMediaType,
-                data: imageBase64,
-              },
-            },
+            ...imageBlocks,
             {
               type: "text",
               text: buildUserPrompt(questions, markSchemeItems),
