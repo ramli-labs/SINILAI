@@ -93,12 +93,37 @@ async function removeAccessAction(formData: FormData) {
   redirect(`/classes/${classId}/teachers`);
 }
 
+async function resetPasswordAction(formData: FormData) {
+  "use server";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const classId = formData.get("classId") as string;
+  const teacherId = formData.get("teacherId") as string;
+  const newPassword = formData.get("newPassword") as string;
+
+  const svc = serviceClient();
+  const { error } = await svc.auth.admin.updateUserById(teacherId, {
+    password: newPassword,
+  });
+  if (error) throw new Error(error.message);
+
+  redirect(`/classes/${classId}/teachers?reset=success`);
+}
+
 export default async function ClassTeachersPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ classId: string }>;
+  searchParams: Promise<{ reset?: string }>;
 }) {
   const { classId } = await params;
+  const { reset } = await searchParams;
   const supabase = await createClient();
 
   const { data: classData } = await supabase
@@ -122,6 +147,23 @@ export default async function ClassTeachersPage({
     .select("teacher_id, subject_id, teachers(full_name, email), subjects(name)")
     .eq("class_id", classId);
 
+  const teacherMap = new Map<string, { full_name: string; email: string; subjects: string[] }>();
+  for (const a of access ?? []) {
+    const t = (a as any).teachers;
+    const s = (a as any).subjects;
+    if (!t) continue;
+    const existing = teacherMap.get(a.teacher_id);
+    if (existing) {
+      existing.subjects.push(s?.name ?? "");
+    } else {
+      teacherMap.set(a.teacher_id, {
+        full_name: t.full_name,
+        email: t.email,
+        subjects: [s?.name ?? ""],
+      });
+    }
+  }
+
   return (
     <div className="max-w-2xl">
       <h1 className="mb-1 text-lg font-semibold">Kelola Guru — {classData.name}</h1>
@@ -130,108 +172,5 @@ export default async function ClassTeachersPage({
         diberikan, bukan seluruh kelas.
       </p>
 
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">
-          Guru dengan Akses
-        </h2>
-        {(!access || access.length === 0) && (
-          <p className="text-sm text-gray-400">Belum ada guru lain ditambahkan.</p>
-        )}
-        <div className="space-y-2">
-          {access?.map((a: any) => (
-            <div
-              key={`${a.teacher_id}-${a.subject_id}`}
-              className="flex items-center justify-between rounded-md border border-gray-100 px-3 py-2 text-sm"
-            >
-              <div>
-                <p className="font-medium">{a.teachers?.full_name}</p>
-                <p className="text-gray-500">
-                  {a.teachers?.email} · {a.subjects?.name}
-                </p>
-              </div>
-              <form action={removeAccessAction}>
-                <input type="hidden" name="classId" value={classId} />
-                <input type="hidden" name="teacherId" value={a.teacher_id} />
-                <input type="hidden" name="subjectId" value={a.subject_id} />
-                <button
-                  type="submit"
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Hapus akses
-                </button>
-              </form>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-gray-700">
-          Tambah Guru Baru
-        </h2>
-        <p className="mb-3 text-xs text-gray-500">
-          Kalau email ini sudah pernah didaftarkan sebelumnya (untuk mapel/kelas
-          lain), sistem otomatis pakai akun yang sama — tidak buat akun baru.
-        </p>
-        <form action={addTeacherAction} className="space-y-3">
-          <input type="hidden" name="classId" value={classId} />
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">Nama Lengkap</label>
-            <input
-              name="fullName"
-              required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">Email</label>
-            <input
-              type="email"
-              name="email"
-              required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">
-              Password Awal (beri tahu ke guru terkait setelah dibuat)
-            </label>
-            <input
-              type="text"
-              name="password"
-              required
-              minLength={6}
-              placeholder="Minimal 6 karakter"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Kalau email sudah punya akun, kolom ini diabaikan.
-            </p>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium">
-              Akses Mapel (hanya mapel ini yang bisa dikelola)
-            </label>
-            <select
-              name="subjectId"
-              required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            >
-              {subjects?.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <SubmitButton pendingText="Menambahkan...">Tambah Guru</SubmitButton>
-        </form>
-      </div>
-    </div>
-  );
-}
+      {reset === "success" && (
+        <p className="mb-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
