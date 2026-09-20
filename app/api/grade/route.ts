@@ -48,6 +48,13 @@ export async function POST(req: NextRequest) {
       .update({ status: "processing" })
       .eq("id", submission_id);
 
+    const { data: examWithSubject } = await supabase
+      .from("exams")
+      .select("subject_id, subjects(default_model)")
+      .eq("id", submission.exam_id)
+      .single();
+    const modelToUse = (examWithSubject as any)?.subjects?.default_model ?? "claude-sonnet-5";
+
     const { data: questions } = await supabase
       .from("questions")
       .select("*")
@@ -84,6 +91,7 @@ export async function POST(req: NextRequest) {
       images,
       questions,
       markSchemeItems: markSchemeItems ?? [],
+      model: modelToUse,
     });
 
     const normalizeConfidence = (c: string): "high" | "medium" | "low" => {
@@ -147,7 +155,7 @@ export async function POST(req: NextRequest) {
       .update({
         status: "processed",
         total_ai_score: totalScore,
-        ai_model_used: "claude-sonnet-5",
+        ai_model_used: modelToUse,
         photo_urls: null,
       })
       .eq("id", submission_id);
