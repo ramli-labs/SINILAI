@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     const { data: submission, error: subError } = await supabase
       .from("submissions")
-      .select("id, exam_id, student_id, photo_url, status")
+      .select("id, exam_id, student_id, photo_urls, status")
       .eq("id", submission_id)
       .single();
 
@@ -36,9 +36,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!submission.photo_url) {
+    if (!submission.photo_urls || submission.photo_urls.length === 0) {
       return NextResponse.json(
-        { error: "No photo attached to this submission" },
+        { error: "No photos attached to this submission" },
         { status: 400 }
       );
     }
@@ -69,14 +69,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const photoResponse = await fetch(submission.photo_url);
-    const photoBuffer = await photoResponse.arrayBuffer();
-    const imageBase64 = Buffer.from(photoBuffer).toString("base64");
-    const contentType = photoResponse.headers.get("content-type") ?? "image/jpeg";
+    const images = await Promise.all(
+      (submission.photo_urls as string[]).map(async (url) => {
+        const photoResponse = await fetch(url);
+        const photoBuffer = await photoResponse.arrayBuffer();
+        const base64 = Buffer.from(photoBuffer).toString("base64");
+        const mediaType = (photoResponse.headers.get("content-type") ??
+          "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
+        return { base64, mediaType };
+      })
+    );
 
     const result = await gradeSubmission({
-      imageBase64,
-      imageMediaType: contentType as "image/jpeg" | "image/png" | "image/webp",
+      images,
       questions,
       markSchemeItems: markSchemeItems ?? [],
     });
@@ -87,10 +92,6 @@ export async function POST(req: NextRequest) {
       return "medium";
     };
 
-    // Jaring pengaman: AI kadang salah kirim question_id (misal "1a" alih-alih
-    // UUID asli). question_id WAJIB berupa UUID valid (kolom database bertipe
-    // uuid), jadi kalau AI salah, cocokkan ulang lewat question_number —
-    // satu baris salah format akan menggagalkan SELURUH batch kalau dibiarkan.
     const isValidUuid = (v: string) =>
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v ?? "");
 
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
         status: "processed",
         total_ai_score: totalScore,
         ai_model_used: "claude-sonnet-5",
-        photo_url: null,
+        photo_urls: null,
       })
       .eq("id", submission_id);
 
