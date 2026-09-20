@@ -62,11 +62,16 @@ export default async function ExamDetailPage({
     <div>
       <div className="mb-1 flex items-start justify-between">
         <h1 className="text-lg font-semibold">{exam?.title}</h1>
-        <DeleteExamButton
-          examId={examId}
-          examTitle={exam?.title ?? ""}
-          deleteAction={deleteExamAction}
-        />
+        <div className="flex gap-2">
+          <a href={`/exams/${examId}/edit`} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50">
+            Edit Ujian
+          </a>
+          <DeleteExamButton
+            examId={examId}
+            examTitle={exam?.title ?? ""}
+            deleteAction={deleteExamAction}
+          />
+        </div>
       </div>
       <p className="mb-4 text-sm text-gray-500">
         {(exam as any)?.subjects?.name} · Total {exam?.total_marks} poin ·{" "}
