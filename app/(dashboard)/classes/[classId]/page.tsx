@@ -53,6 +53,9 @@ export default async function ClassDetailPage({
           <a href={`/exams/new?classId=${classId}`} className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
             + Ujian Baru
           </a>
+          <a href={`/classes/${classId}/parent-report`} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
+            Laporan Orang Tua
+          </a>
           <DeleteClassButton
             classId={classId}
             className={classData?.name ?? ""}
