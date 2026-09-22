@@ -49,7 +49,8 @@ RULES YOU MUST FOLLOW:
 5. If handwriting is unclear, or a case is genuinely ambiguous (e.g. a method mark that is implied but not explicitly written), set confidence to "low" or "medium" and flag it for teacher review — do NOT guess silently.
 6. If you can read a student name/identifier on ANY of the pages (often the first page), report it in student_name_read so the teacher can verify the match — but do not use it to influence scoring.
 7. If a question's answer genuinely cannot be found on any provided page, score it 0, set confidence to "low", and note in flag_reason that no answer was found.
-8. Respond ONLY with valid JSON matching the exact schema given in the user message. No preamble, no markdown fences, no explanation outside the JSON.`;
+8. Keep the "reasoning" field for each question SHORT — one or two concise sentences maximum. Do not write long explanations; the teacher can always look at the photo for detail. This matters especially for exams with many questions or long essay answers, where verbose reasoning risks running out of response space before you finish.
+9. Respond ONLY with valid JSON matching the exact schema given in the user message. No preamble, no markdown fences, no explanation outside the JSON.`;
 }
 
 function buildUserPrompt(
@@ -125,7 +126,7 @@ export async function gradeSubmission(
     },
     body: JSON.stringify({
       model: model ?? DEFAULT_MODEL,
-      max_tokens: 4000,
+      max_tokens: 16000,
       system: buildSystemPrompt(),
       messages: [
         {
@@ -158,6 +159,12 @@ export async function gradeSubmission(
   try {
     parsed = JSON.parse(textBlock.text);
   } catch {
+    const wasTruncated = data.stop_reason === "max_tokens";
+    if (wasTruncated) {
+      throw new Error(
+        `Respons AI terpotong sebelum selesai (jawaban terlalu panjang untuk batas yang ada). Coba lagi — kalau masih terjadi, kurangi jumlah halaman per grup upload atau hubungi Bapak Ramli untuk naikkan batas lebih tinggi lagi.`
+      );
+    }
     throw new Error(
       `Failed to parse Claude response as JSON: ${textBlock.text.slice(
         0,
