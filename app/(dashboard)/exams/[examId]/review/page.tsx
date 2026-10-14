@@ -3,7 +3,7 @@ import { fetchAllRows } from "@/lib/fetchAll";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import ExportExcelButton from "@/components/ExportExcelButton";
-import ReasoningEditor from "@/components/ReasoningEditor";
+import ScoreRow from "@/components/ScoreRow";
 import RewriteAllButton from "@/components/RewriteAllButton";
 
 function serviceClient() {
@@ -240,54 +240,17 @@ export default async function ReviewPage({
                       {scores.map((sc: any) => {
                         const q = questionById.get(sc.question_id);
                         return (
-                        <tr
-                          key={sc.id}
-                          className={
-                            "border-t border-gray-100 " +
-                            (sc.flagged_for_review ? "bg-amber-50" : "")
-                          }
-                        >
-                          <td className="py-1.5">
-                            {q?.question_number ?? sc.question_id}
-                            {sc.flagged_for_review && (
-                              <span title={sc.ai_reasoning}> ⚠</span>
-                            )}
-                          </td>
-                          <td className="py-1.5">
-                            {sc.ai_score}/{q?.max_marks ?? "?"}
-                            <input
-                              type="hidden"
-                              name={`aiScore-${sc.id}`}
-                              value={sc.ai_score}
-                            />
-                            <input type="hidden" name="scoreId" value={sc.id} />
-                            <input
-                              type="hidden"
-                              name={`hadOverride-${sc.id}`}
-                              value={sc.teacher_override_score != null ? "1" : "0"}
-                            />
-                          </td>
-                          <td className="max-w-xs py-1.5 text-xs text-gray-500">
-                            {sc.ai_reasoning}
-                            {sc.teacher_override_score != null && (
-                              <ReasoningEditor
-                                key={sc.teacher_reasoning ?? ""}
-                                scoreId={sc.id}
-                                initialValue={sc.teacher_reasoning ?? ""}
-                              />
-                            )}
-                          </td>
-                          <td className="py-1.5">
-                            <input
-                              type="number"
-                              step="0.5"
-                              name={`override-${sc.id}`}
-                              placeholder={String(sc.ai_score)}
-                              defaultValue={sc.teacher_override_score ?? ""}
-                              className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm"
-                            />
-                          </td>
-                        </tr>
+                          <ScoreRow
+                            key={`${sc.id}-${sc.teacher_override_score ?? ""}-${sc.teacher_reasoning ?? ""}`}
+                            scoreId={sc.id}
+                            questionNumber={q?.question_number ?? sc.question_id}
+                            maxMarks={q?.max_marks ?? null}
+                            aiScore={sc.ai_score}
+                            aiReasoning={sc.ai_reasoning}
+                            flagged={!!sc.flagged_for_review}
+                            initialOverride={sc.teacher_override_score}
+                            initialReasoning={sc.teacher_reasoning}
+                          />
                         );
                       })}
                     </tbody>
