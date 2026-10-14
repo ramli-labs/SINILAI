@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/SubmitButton";
 
 const MODEL_OPTIONS = [
-  { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5 (lebih murah, cocok untuk soal sederhana)" },
-  { value: "claude-sonnet-5", label: "Sonnet 5 (lebih teliti, disarankan untuk esai/penalaran)" },
+  { value: "claude-haiku-5-5", label: "Haiku 5.5 (lebih murah, cocok untuk soal sederhana)" },
+  { value: "claude-sonnet-5-5", label: "Sonnet 5.5 (lebih teliti, disarankan untuk esai/penalaran)" },
 ];
 
 async function updateModelsAction(formData: FormData) {
@@ -47,9 +47,9 @@ export default async function ModelSettingsPage({
     <div className="max-w-xl">
       <h1 className="mb-1 text-lg font-semibold">Pengaturan Model AI per Mapel</h1>
       <p className="mb-4 text-sm text-gray-500">
-        Pilih model AI untuk tiap mapel. Sonnet 5 lebih teliti tapi lebih
+        Pilih model AI untuk tiap mapel. Sonnet 5.5 lebih teliti tapi lebih
         mahal — cocok untuk mapel dengan jawaban esai/penalaran panjang
-        (Biologi, English, GP). Haiku 4.5 lebih murah — cocok untuk soal
+        (Biologi, English, GP). Haiku 5.5 lebih murah — cocok untuk soal
         yang jawabannya lebih terstruktur (Fisika, Math, ICT).
       </p>
 

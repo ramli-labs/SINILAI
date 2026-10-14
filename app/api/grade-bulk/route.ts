@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Ujian tidak ditemukan" }, { status: 404 });
     }
 
-    const modelToUse = (exam as any).subjects?.default_model ?? "claude-sonnet-5";
+    const modelToUse = (exam as any).subjects?.default_model ?? "claude-sonnet-5-5";
 
     const { data: questions } = await supabase
       .from("questions")

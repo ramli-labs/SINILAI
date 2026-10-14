@@ -6,7 +6,7 @@
 import type { MarkSchemeItem, Question } from "./types";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const DEFAULT_MODEL = "claude-sonnet-5";
+const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 export interface QuestionScoreResult {
   question_id: string;

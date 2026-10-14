@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mammoth from "mammoth";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = "claude-sonnet-5";
+const MODEL = "claude-sonnet-5-5";
 
 const SYSTEM_PROMPT = `You are helping a teacher digitize a Cambridge-style exam question paper and its mark scheme into a structured plain-text format for an AI grading system.
 

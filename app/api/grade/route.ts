@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       .select("subject_id, subjects(default_model)")
       .eq("id", submission.exam_id)
       .single();
-    const modelToUse = (examWithSubject as any)?.subjects?.default_model ?? "claude-sonnet-5";
+    const modelToUse = (examWithSubject as any)?.subjects?.default_model ?? "claude-sonnet-5-5";
 
     const { data: questions } = await supabase
       .from("questions")
