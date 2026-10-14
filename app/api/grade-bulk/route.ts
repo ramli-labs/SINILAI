@@ -7,6 +7,12 @@
 // client supaya guru pilih manual (lihat /api/finalize-bulk-match).
 
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getTeacher,
+  unauthorized,
+  forbidden,
+  teacherOwnsExam,
+} from "@/lib/apiAuth";
 import { createClient } from "@supabase/supabase-js";
 import { gradeSubmission } from "@/lib/claude";
 import type { Question, MarkSchemeItem } from "@/lib/types";
@@ -38,6 +44,9 @@ function similarity(a: string, b: string): number {
 
 export async function POST(req: NextRequest) {
   try {
+    const { supabase: userDb, user } = await getTeacher();
+    if (!user) return unauthorized();
+
     const { exam_id, photo_urls } = await req.json();
 
     if (!exam_id || !photo_urls || !Array.isArray(photo_urls) || photo_urls.length === 0) {
@@ -47,9 +56,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!(await teacherOwnsExam(userDb, exam_id))) return forbidden();
+
     const { data: exam } = await supabase
       .from("exams")
-      .select("id, class_id, subject_id, subjects(default_model)")
+      .select("id, class_id, subject_id, subjects(name, default_model)")
       .eq("id", exam_id)
       .single();
 
@@ -95,6 +106,7 @@ export async function POST(req: NextRequest) {
       questions,
       markSchemeItems: markSchemeItems ?? [],
       model: modelToUse,
+      subjectName: (exam as any).subjects?.name ?? null,
     });
 
     const { data: students } = await supabase

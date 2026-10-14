@@ -3,6 +3,12 @@
 // simpan hasil ke question_scores, lalu hapus foto asli (kebijakan privasi).
 
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getTeacher,
+  unauthorized,
+  forbidden,
+  teacherOwnsSubmission,
+} from "@/lib/apiAuth";
 import { createClient } from "@supabase/supabase-js";
 import { gradeSubmission } from "@/lib/claude";
 import type { Question, MarkSchemeItem } from "@/lib/types";
@@ -14,6 +20,9 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
   try {
+    const { supabase: userDb, user } = await getTeacher();
+    if (!user) return unauthorized();
+
     const { submission_id } = await req.json();
 
     if (!submission_id) {
@@ -22,6 +31,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!(await teacherOwnsSubmission(userDb, submission_id))) return forbidden();
 
     const { data: submission, error: subError } = await supabase
       .from("submissions")
@@ -50,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     const { data: examWithSubject } = await supabase
       .from("exams")
-      .select("subject_id, subjects(default_model)")
+      .select("subject_id, subjects(name, default_model)")
       .eq("id", submission.exam_id)
       .single();
     const modelToUse = (examWithSubject as any)?.subjects?.default_model ?? "claude-sonnet-5-5";
@@ -92,6 +103,7 @@ export async function POST(req: NextRequest) {
       questions,
       markSchemeItems: markSchemeItems ?? [],
       model: modelToUse,
+      subjectName: (examWithSubject as any)?.subjects?.name ?? null,
     });
 
     const normalizeConfidence = (c: string): "high" | "medium" | "low" => {

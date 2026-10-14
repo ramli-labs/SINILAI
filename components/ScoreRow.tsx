@@ -32,6 +32,10 @@ export default function ScoreRow({
   const [error, setError] = useState("");
 
   const hasOverride = override.trim() !== "";
+  const overNum = parseFloat(override);
+  const overInvalid =
+    hasOverride &&
+    (Number.isNaN(overNum) || overNum < 0 || (maxMarks != null && overNum > maxMarks));
 
   async function generate() {
     setLoading(true);
@@ -63,6 +67,9 @@ export default function ScoreRow({
           {aiScore}/{maxMarks ?? "?"}
           <input type="hidden" name={`aiScore-${scoreId}`} value={aiScore} />
           <input type="hidden" name="scoreId" value={scoreId} />
+          {maxMarks != null && (
+            <input type="hidden" name={`max-${scoreId}`} value={maxMarks} />
+          )}
           <input
             type="hidden"
             name={`hadOverride-${scoreId}`}
@@ -87,12 +94,20 @@ export default function ScoreRow({
             placeholder={String(aiScore)}
             value={override}
             onChange={(e) => setOverride(e.target.value)}
-            className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm"
+            className={
+              "w-16 rounded-md border px-2 py-1 text-sm " +
+              (overInvalid ? "border-red-500 bg-red-50" : "border-gray-300")
+            }
           />
+          {overInvalid && (
+            <p className="mt-0.5 text-[11px] text-red-600">
+              Maks {maxMarks ?? "?"}
+            </p>
+          )}
         </td>
       </tr>
 
-      {hasOverride && (
+      {hasOverride && !overInvalid && (
         <tr className={flagged ? "bg-amber-50" : ""}>
           <td />
           <td colSpan={3} className="pb-2">

@@ -137,17 +137,27 @@ export default function BulkPhotoUpload({
     buildGroups(sorted);
   }
 
+  // Hanya proses grup yang belum dinilai atau yang gagal —
+  // grup yang sudah berhasil tidak dinilai ulang (hemat biaya).
   async function processQueue() {
     setRunning(true);
     for (let i = 0; i < queue.length; i++) {
-      await processItem(i);
+      if (queue[i].status === "waiting" || queue[i].status === "error") {
+        await processItem(i);
+      }
     }
+    setRunning(false);
+  }
+
+  async function retryItem(index: number) {
+    setRunning(true);
+    await processItem(index);
     setRunning(false);
   }
 
   async function processItem(index: number) {
     setQueue((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, status: "processing" } : item))
+      prev.map((item, i) => (i === index ? { ...item, status: "processing", errorMsg: undefined } : item))
     );
 
     try {
@@ -212,7 +222,7 @@ export default function BulkPhotoUpload({
     if (!item.selectedStudentId) return;
 
     setQueue((prev) =>
-      prev.map((it, i) => (i === index ? { ...it, status: "processing" } : it))
+      prev.map((it, i) => (i === index ? { ...it, status: "processing", errorMsg: undefined } : it))
     );
 
     try {
@@ -236,7 +246,11 @@ export default function BulkPhotoUpload({
       );
     } catch (err: any) {
       setQueue((prev) =>
-        prev.map((it, i) => (i === index ? { ...it, status: "error", errorMsg: err.message } : it))
+        prev.map((it, i) =>
+          i === index
+            ? { ...it, status: "needs_review", errorMsg: `Gagal menyimpan: ${err.message}. Klik Simpan lagi.` }
+            : it
+        )
       );
     }
   }
@@ -269,10 +283,16 @@ export default function BulkPhotoUpload({
         <button
           type="button"
           onClick={processQueue}
-          disabled={running}
+          disabled={
+            running || !queue.some((it) => it.status === "waiting" || it.status === "error")
+          }
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {running ? "Memproses..." : `Proses ${queue.length} Siswa (${queue.reduce((n, it) => n + it.files.length, 0)} foto)`}
+          {running
+            ? "Memproses..."
+            : queue.some((it) => it.status === "error")
+            ? `↻ Coba Lagi ${queue.filter((it) => it.status === "error").length} Grup yang Gagal`
+            : `Proses ${queue.length} Siswa (${queue.reduce((n, it) => n + it.files.length, 0)} foto)`}
         </button>
       )}
 
@@ -310,7 +330,17 @@ export default function BulkPhotoUpload({
                 <p className="text-green-700">✓ Tersimpan</p>
               )}
               {item.status === "error" && (
-                <p className="text-red-600">Error: {item.errorMsg}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <p className="text-red-600">Error: {item.errorMsg}</p>
+                  <button
+                    type="button"
+                    onClick={() => retryItem(i)}
+                    disabled={running}
+                    className="rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    ↻ Coba lagi
+                  </button>
+                </div>
               )}
               {item.status === "needs_review" && (
                 <div className="mt-1 space-y-1">
@@ -318,6 +348,9 @@ export default function BulkPhotoUpload({
                     ⚠ Nama terbaca: "{item.studentNameRead ?? "-"}" — tidak yakin
                     cocok siapa. Pilih manual:
                   </p>
+                  {item.errorMsg && (
+                    <p className="text-xs text-red-600">{item.errorMsg}</p>
+                  )}
                   <div className="flex items-center gap-2">
                     <select
                       value={item.selectedStudentId ?? ""}

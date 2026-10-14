@@ -4,6 +4,10 @@
 // form "Ujian Baru" — supaya guru tidak perlu ngetik manual.
 
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getTeacher,
+  unauthorized,
+} from "@/lib/apiAuth";
 import mammoth from "mammoth";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
@@ -33,6 +37,9 @@ RULES:
 
 export async function POST(req: NextRequest) {
   try {
+    const { user } = await getTeacher();
+    if (!user) return unauthorized();
+
     const formData = await req.formData();
     const qpFile = formData.get("qp") as File | null;
     const msFile = formData.get("ms") as File | null;

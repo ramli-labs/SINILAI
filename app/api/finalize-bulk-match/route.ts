@@ -5,6 +5,13 @@
 // cukup simpan hasil yang sudah ada ke submission siswa yang dipilih.
 
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getTeacher,
+  unauthorized,
+  forbidden,
+  teacherOwnsExam,
+  studentInClass,
+} from "@/lib/apiAuth";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -14,6 +21,9 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
   try {
+    const { supabase: userDb, user } = await getTeacher();
+    if (!user) return unauthorized();
+
     const { exam_id, student_id, photo_urls, total_score, scores, model_used } = await req.json();
 
     if (!exam_id || !student_id || !scores) {
@@ -21,6 +31,12 @@ export async function POST(req: NextRequest) {
         { error: "exam_id, student_id, dan scores wajib diisi" },
         { status: 400 }
       );
+    }
+
+    const ownedExam = await teacherOwnsExam(userDb, exam_id);
+    if (!ownedExam) return forbidden();
+    if (!(await studentInClass(userDb, student_id, ownedExam.class_id))) {
+      return forbidden("Siswa tidak terdaftar di kelas ujian ini.");
     }
 
     const { data: questions } = await supabase

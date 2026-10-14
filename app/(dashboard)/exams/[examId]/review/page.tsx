@@ -43,10 +43,18 @@ async function approveSubmissionAction(formData: FormData) {
   for (const scoreId of scoreIds) {
     const overrideRaw = formData.get(`override-${scoreId}`) as string;
     const aiScoreRaw = formData.get(`aiScore-${scoreId}`) as string;
-    const finalScore =
+    const maxRaw = formData.get(`max-${scoreId}`) as string | null;
+    const maxMarks = maxRaw != null && maxRaw !== "" ? parseFloat(maxRaw) : null;
+    let finalScore =
       overrideRaw !== "" && overrideRaw != null
         ? parseFloat(overrideRaw)
         : parseFloat(aiScoreRaw);
+    // Jaga-jaga: nilai tidak boleh negatif atau melebihi nilai maksimal soal
+    if (Number.isNaN(finalScore)) finalScore = parseFloat(aiScoreRaw) || 0;
+    if (finalScore < 0) finalScore = 0;
+    if (maxMarks != null && !Number.isNaN(maxMarks) && finalScore > maxMarks) {
+      finalScore = maxMarks;
+    }
 
     totalFinal += finalScore;
 
