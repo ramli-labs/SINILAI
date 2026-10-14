@@ -59,11 +59,40 @@ export default function BulkPhotoUpload({
   const [running, setRunning] = useState(false);
   const [extracting, setExtracting] = useState(false);
 
+  // Kunci siswa dari nama file: buang ekstensi lalu nomor halaman di akhir.
+  // "AISHA MADINAH KHARIS0003.jpg" -> "aisha madinah kharis"
+  // "AISHA MADINAH KHARIS.jpg"     -> "aisha madinah kharis"
+  // "01_p02.jpg"                   -> "01"
+  function studentKey(fileName: string): string {
+    return fileName
+      .replace(/\.[^.]+$/, "")
+      .replace(/[\s_-]*\(?\d+\)?$/, "")
+      .replace(/[\s_-]+(?:p|hal|page)[\s_-]*$/i, "")
+      .trim()
+      .toLowerCase();
+  }
+
   function buildGroups(sortedFiles: File[]) {
-    const groups: File[][] = [];
-    for (let i = 0; i < sortedFiles.length; i += pagesPerSubmission) {
-      groups.push(sortedFiles.slice(i, i + pagesPerSubmission));
+    // 1) Kelompokkan berdasarkan nama siswa di nama file
+    const byName = new Map<string, File[]>();
+    for (const f of sortedFiles) {
+      const key = studentKey(f.name);
+      if (!byName.has(key)) byName.set(key, []);
+      byName.get(key)!.push(f);
     }
+    let groups = Array.from(byName.values());
+
+    // 2) Cadangan: kalau nama file tidak mengandung nama siswa
+    //    (misal semua IMG_1234.jpg), potong rata per jumlah halaman.
+    const namesUnusable =
+      groups.length === 1 && sortedFiles.length > pagesPerSubmission * 1.5;
+    if (namesUnusable) {
+      groups = [];
+      for (let i = 0; i < sortedFiles.length; i += pagesPerSubmission) {
+        groups.push(sortedFiles.slice(i, i + pagesPerSubmission));
+      }
+    }
+
     setQueue(groups.map((files) => ({ files, status: "waiting" as ItemStatus })));
   }
 
@@ -221,8 +250,8 @@ export default function BulkPhotoUpload({
         <p className="mb-2 text-xs text-gray-500">
           Ujian ini diatur {pagesPerSubmission} halaman per siswa. Foto akan
           diurutkan otomatis berdasarkan NAMA FILE (bukan urutan pilih), lalu
-          dikelompokkan {pagesPerSubmission} per grup. Pastikan nama file
-          konsisten per siswa (misal 01_p01.jpg, 01_p02.jpg, ..., 02_p01.jpg).
+          dikelompokkan per siswa berdasarkan nama file (nomor halaman di
+          akhir nama diabaikan, misal NAMA SISWA0001.jpg, NAMA SISWA0002.jpg).
         </p>
         <input
           type="file"
@@ -243,7 +272,7 @@ export default function BulkPhotoUpload({
           disabled={running}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {running ? "Memproses..." : `Proses ${queue.length} Siswa (${queue.length * pagesPerSubmission} foto)`}
+          {running ? "Memproses..." : `Proses ${queue.length} Siswa (${queue.reduce((n, it) => n + it.files.length, 0)} foto)`}
         </button>
       )}
 
@@ -258,6 +287,12 @@ export default function BulkPhotoUpload({
                 Grup {i + 1} ({item.files.length} halaman) — mulai dari{" "}
                 {item.files[0]?.name}
               </p>
+              {item.files.length !== pagesPerSubmission && (
+                <p className="text-xs text-amber-600">
+                  Jumlah halaman beda dari pengaturan ujian ({pagesPerSubmission}{" "}
+                  halaman) — cek apakah ada foto yang kurang/lebih.
+                </p>
+              )}
 
               {item.status === "waiting" && (
                 <p className="text-gray-400">Menunggu diproses...</p>
