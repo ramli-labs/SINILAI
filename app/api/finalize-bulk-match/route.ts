@@ -13,6 +13,7 @@ import {
   studentInClass,
 } from "@/lib/apiAuth";
 import { createClient } from "@supabase/supabase-js";
+import { deletePhotos, photosBelongToExam } from "@/lib/photos";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -114,6 +115,11 @@ export async function POST(req: NextRequest) {
         photo_urls: null,
       })
       .eq("id", submission.id);
+
+    // Nilai sudah tersimpan: hapus file foto (kebijakan privasi)
+    if (Array.isArray(photo_urls)) {
+      if (photosBelongToExam(photo_urls, exam_id)) await deletePhotos(supabase, photo_urls);
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

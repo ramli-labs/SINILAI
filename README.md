@@ -7,7 +7,7 @@ MVP: 1 kelas (7A Cambridge), mapel Fisika, model Claude Sonnet 5.5.
 ### 1. Setup Supabase
 1. Buat project baru di https://supabase.com (gratis)
 2. Buka **SQL Editor**, jalankan seluruh isi `supabase/schema.sql`
-3. Buka **Storage**, buat bucket baru bernama `submission-photos` (set sebagai **public** supaya foto bisa dibaca API grading — foto otomatis dihapus referensinya setelah dinilai)
+3. Buka **Storage**, buat bucket baru bernama `submission-photos` dan biarkan **privat** (Public bucket = OFF). Server membaca foto dengan service role, lalu menghapus file foto setelah nilai tersimpan.
 4. Buka **Project Settings > API**, salin:
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
    - `anon public` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -50,5 +50,4 @@ Lihat `PROJECT-STRUCTURE.md` (dari chat sebelumnya) untuk penjelasan folder leng
 
 - Multi-mapel dengan model routing otomatis (Haiku vs Sonnet per mapel)
 - Redaksi otomatis nama siswa dari foto sebelum dikirim ke API
-- Auto-hapus file di Supabase Storage (saat ini hanya `photo_url` di database yang dikosongkan, file fisik di bucket perlu dihapus manual atau tambahkan `supabase.storage.from(...).remove()` di `app/api/grade/route.ts`)
 - Dashboard analitik (misal deteksi miskonsepsi berulang di satu kelas)

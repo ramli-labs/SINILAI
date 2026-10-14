@@ -190,10 +190,8 @@ export default function BulkPhotoUpload({
           .upload(path, item.files[p], { upsert: true });
         if (uploadError) throw new Error(uploadError.message);
 
-        const { data: publicUrlData } = supabase.storage
-          .from("submission-photos")
-          .getPublicUrl(path);
-        photoUrls.push(publicUrlData.publicUrl);
+        // Simpan PATH (bukan URL publik) — bucket foto bersifat privat
+        photoUrls.push(path);
       }
 
       const res = await fetch("/api/grade-bulk", {

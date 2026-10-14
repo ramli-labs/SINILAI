@@ -40,10 +40,6 @@ export default function PhotoUpload({
 
       if (uploadError) throw new Error(uploadError.message);
 
-      const { data: publicUrlData } = supabase.storage
-        .from("submission-photos")
-        .getPublicUrl(path);
-
       // 2. Buat/update baris submission
       const { data: submission, error: subError } = await supabase
         .from("submissions")
@@ -51,7 +47,7 @@ export default function PhotoUpload({
           {
             exam_id: examId,
             student_id: studentId,
-            photo_url: publicUrlData.publicUrl,
+            photo_urls: [path], // path file di bucket privat
             status: "pending",
           },
           { onConflict: "exam_id,student_id" }

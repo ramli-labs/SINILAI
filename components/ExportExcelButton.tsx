@@ -2,19 +2,31 @@
 
 import * as XLSX from "xlsx";
 
+type Sheet = { name: string; data: Record<string, any>[]; colWidths?: number[] };
+
 export default function ExportExcelButton({
   data,
   filename,
   sheetName,
+  colWidths,
+  extraSheets = [],
 }: {
   data: Record<string, any>[];
   filename: string;
   sheetName: string;
+  colWidths?: number[];
+  extraSheets?: Sheet[];
 }) {
   function handleExport() {
-    const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    const sheets: Sheet[] = [{ name: sheetName, data, colWidths }, ...extraSheets];
+    for (const sh of sheets) {
+      const ws = XLSX.utils.json_to_sheet(sh.data);
+      if (sh.colWidths) ws["!cols"] = sh.colWidths.map((wch) => ({ wch }));
+      // Baris judul bisa difilter
+      if (ws["!ref"]) ws["!autofilter"] = { ref: ws["!ref"] };
+      XLSX.utils.book_append_sheet(workbook, ws, sh.name);
+    }
     XLSX.writeFile(workbook, filename);
   }
 
