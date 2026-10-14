@@ -94,7 +94,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ questionsRaw: textBlock.text.trim() });
+    // Buang pembungkus ``` kalau model menambahkannya
+    const cleaned = textBlock.text
+      .trim()
+      .replace(/^```[a-z]*\s*\n?/i, "")
+      .replace(/\n?```\s*$/, "")
+      .trim();
+    return NextResponse.json({ questionsRaw: cleaned });
   } catch (err: any) {
     console.error("Parse exam error:", err);
     return NextResponse.json(

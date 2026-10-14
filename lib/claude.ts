@@ -157,7 +157,7 @@ export async function gradeSubmission(
 
   let parsed: GradingResponse;
   try {
-    parsed = JSON.parse(textBlock.text);
+    parsed = JSON.parse(extractJson(textBlock.text));
   } catch {
     const wasTruncated = data.stop_reason === "max_tokens";
     if (wasTruncated) {
@@ -174,4 +174,16 @@ export async function gradeSubmission(
   }
 
   return parsed;
+}
+
+// Model baru (Sonnet/Haiku 5.5) kadang membungkus JSON dengan ```json ... ```
+// atau menambah kalimat pembuka. Ambil hanya bagian objek JSON-nya.
+export function extractJson(text: string): string {
+  let t = text.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fence) t = fence[1].trim();
+  const start = t.indexOf("{");
+  const end = t.lastIndexOf("}");
+  if (start !== -1 && end > start) t = t.slice(start, end + 1);
+  return t;
 }
