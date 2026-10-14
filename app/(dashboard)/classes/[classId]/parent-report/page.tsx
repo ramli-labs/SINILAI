@@ -70,7 +70,7 @@ export default async function ParentReportPage({
     svc
       .from("question_scores")
       .select(
-        "id, submission_id, question_id, ai_score, ai_reasoning, teacher_override_score"
+        "id, submission_id, question_id, ai_score, ai_reasoning, teacher_override_score, teacher_reasoning"
       )
       .in("submission_id", submissionIds.length > 0 ? submissionIds : [""])
   );
@@ -111,7 +111,7 @@ export default async function ParentReportPage({
           question_number: q?.question_number ?? "?",
           question_text: q?.question_text ?? null,
           category: categorize(finalScore, q?.max_marks ?? 1),
-          reasoning: extractReasoning(sc.ai_reasoning),
+          reasoning: (sc.teacher_reasoning?.trim() || extractReasoning(sc.ai_reasoning)),
         };
       });
 
@@ -174,8 +174,8 @@ export default async function ParentReportPage({
               const kurang = items.filter((i) => i.category === "kurang");
 
               return (
-                <div key={subjectName} className="mb-5">
-                  <h3 className="mb-2 text-sm font-semibold text-gray-800">
+                <div key={subjectName} className="mb-5 break-inside-avoid">
+                  <h3 className="mb-2 break-after-avoid border-b border-gray-200 pb-1 text-sm font-semibold text-gray-800">
                     {subjectName}
                   </h3>
 
@@ -186,7 +186,7 @@ export default async function ParentReportPage({
                       </p>
                       <ul className="ml-5 list-disc text-sm text-gray-700">
                         {baik.map((i, idx) => (
-                          <li key={idx}>{i.question_text ?? i.question_number}</li>
+                          <li key={idx} className="break-inside-avoid">{i.question_text ?? i.question_number}</li>
                         ))}
                       </ul>
                     </div>
@@ -199,7 +199,7 @@ export default async function ParentReportPage({
                       </p>
                       <ul className="ml-5 list-disc text-sm text-gray-700">
                         {penguatan.map((i, idx) => (
-                          <li key={idx}>
+                          <li key={idx} className="break-inside-avoid">
                             {i.question_text ?? i.question_number}
                             {i.reasoning && (
                               <span className="text-gray-500">
@@ -220,7 +220,7 @@ export default async function ParentReportPage({
                       </p>
                       <ul className="ml-5 list-disc text-sm text-gray-700">
                         {kurang.map((i, idx) => (
-                          <li key={idx}>
+                          <li key={idx} className="break-inside-avoid">
                             {i.question_text ?? i.question_number}
                             {i.reasoning && (
                               <span className="text-gray-500">

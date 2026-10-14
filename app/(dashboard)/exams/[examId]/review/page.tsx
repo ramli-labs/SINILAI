@@ -3,6 +3,8 @@ import { fetchAllRows } from "@/lib/fetchAll";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import ExportExcelButton from "@/components/ExportExcelButton";
+import ReasoningEditor from "@/components/ReasoningEditor";
+import RewriteAllButton from "@/components/RewriteAllButton";
 
 function serviceClient() {
   return createServiceClient(
@@ -48,10 +50,21 @@ async function approveSubmissionAction(formData: FormData) {
 
     totalFinal += finalScore;
 
-    if (overrideRaw !== "" && overrideRaw != null) {
+    const hasOverride = overrideRaw !== "" && overrideRaw != null;
+    const hadOverride = formData.get(`hadOverride-${scoreId}`) === "1";
+
+    if (hasOverride) {
+      const update: Record<string, any> = { teacher_override_score: finalScore };
+      const reasoningRaw = formData.get(`reasoning-${scoreId}`);
+      if (reasoningRaw != null) {
+        update.teacher_reasoning = String(reasoningRaw).trim() || null;
+      }
+      await svc.from("question_scores").update(update).eq("id", scoreId);
+    } else if (hadOverride) {
+      // Override dikosongkan guru: kembali ke nilai & deskripsi AI
       await svc
         .from("question_scores")
-        .update({ teacher_override_score: finalScore })
+        .update({ teacher_override_score: null, teacher_reasoning: null })
         .eq("id", scoreId);
     }
   }
@@ -98,7 +111,7 @@ export default async function ReviewPage({
     svc
       .from("question_scores")
       .select(
-        "id, submission_id, question_id, ai_score, ai_reasoning, confidence, flagged_for_review, teacher_override_score"
+        "id, submission_id, question_id, ai_score, ai_reasoning, confidence, flagged_for_review, teacher_override_score, teacher_reasoning"
       )
       .in("submission_id", submissionIds.length > 0 ? submissionIds : [""])
   );
@@ -166,6 +179,17 @@ export default async function ReviewPage({
         )}
       </div>
       <div className="mb-4" />
+
+      <RewriteAllButton
+        scoreIds={(allScores ?? [])
+          .filter(
+            (sc: any) =>
+              sc.teacher_override_score != null &&
+              Number(sc.teacher_override_score) !== Number(sc.ai_score) &&
+              !sc.teacher_reasoning
+          )
+          .map((sc: any) => sc.id)}
+      />
 
       <div className="space-y-4">
         {submissions?.map((sub: any) => {
@@ -237,9 +261,21 @@ export default async function ReviewPage({
                               value={sc.ai_score}
                             />
                             <input type="hidden" name="scoreId" value={sc.id} />
+                            <input
+                              type="hidden"
+                              name={`hadOverride-${sc.id}`}
+                              value={sc.teacher_override_score != null ? "1" : "0"}
+                            />
                           </td>
                           <td className="max-w-xs py-1.5 text-xs text-gray-500">
                             {sc.ai_reasoning}
+                            {sc.teacher_override_score != null && (
+                              <ReasoningEditor
+                                key={sc.teacher_reasoning ?? ""}
+                                scoreId={sc.id}
+                                initialValue={sc.teacher_reasoning ?? ""}
+                              />
+                            )}
                           </td>
                           <td className="py-1.5">
                             <input

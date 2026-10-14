@@ -52,7 +52,7 @@ export default async function ClassSummaryPage({
   const { data: allScores } = await fetchAllRows<any>(() =>
     svc
       .from("question_scores")
-      .select("id, submission_id, question_id, ai_score, ai_reasoning, teacher_override_score")
+      .select("id, submission_id, question_id, ai_score, ai_reasoning, teacher_override_score, teacher_reasoning")
       .in("submission_id", submissionIds.length > 0 ? submissionIds : [""])
   );
 
@@ -72,10 +72,10 @@ export default async function ClassSummaryPage({
         fullCount++;
       } else if (finalScore <= 0) {
         zeroCount++;
-        if (!sampleReasoning) sampleReasoning = extractReasoning(s.ai_reasoning);
+        if (!sampleReasoning) sampleReasoning = (s.teacher_reasoning?.trim() || extractReasoning(s.ai_reasoning));
       } else {
         partialCount++;
-        if (!sampleReasoning) sampleReasoning = extractReasoning(s.ai_reasoning);
+        if (!sampleReasoning) sampleReasoning = (s.teacher_reasoning?.trim() || extractReasoning(s.ai_reasoning));
       }
     }
 

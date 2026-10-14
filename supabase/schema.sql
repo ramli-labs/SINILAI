@@ -126,6 +126,7 @@ create table question_scores (
   confidence text check (confidence in ('high', 'medium', 'low')),
   flagged_for_review boolean not null default false,
   teacher_override_score numeric,    -- diisi jika guru mengoreksi
+  teacher_reasoning text,            -- deskripsi versi guru (dipakai di laporan bila terisi)
   created_at timestamptz not null default now(),
   unique (submission_id, question_id)
 );

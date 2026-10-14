@@ -7,6 +7,75 @@ interface ReportEntry {
   fileName: string;
 }
 
+// Tempel gambar laporan ke PDF A4 dengan margin 10 mm.
+// - Bila hanya sedikit lebih panjang dari 1 halaman (<= 15%), dikecilkan agar muat 1 halaman.
+// - Bila lebih panjang, dipotong per halaman di baris yang kosong (putih),
+//   supaya teks tidak terbelah di tengah.
+const MARGIN_MM = 10;
+
+function addCanvasToPdf(pdf: any, canvas: HTMLCanvasElement) {
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const usableW = pageW - MARGIN_MM * 2;
+  const usableH = pageH - MARGIN_MM * 2;
+
+  const fullHmm = (canvas.height * usableW) / canvas.width;
+
+  if (fullHmm <= usableH * 1.15) {
+    const scale = Math.min(1, usableH / fullHmm);
+    const w = usableW * scale;
+    const h = fullHmm * scale;
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", (pageW - w) / 2, MARGIN_MM, w, h);
+    return;
+  }
+
+  const pxPerMm = canvas.width / usableW;
+  const pagePx = Math.floor(usableH * pxPerMm);
+  const ctx = canvas.getContext("2d");
+
+  let top = 0;
+  let first = true;
+  while (top < canvas.height) {
+    let cut = Math.min(top + pagePx, canvas.height);
+    if (cut < canvas.height && ctx) {
+      cut = findBlankRow(ctx, canvas.width, cut, Math.floor(pagePx * 0.2)) ?? cut;
+    }
+    const sliceH = cut - top;
+    const slice = document.createElement("canvas");
+    slice.width = canvas.width;
+    slice.height = sliceH;
+    slice.getContext("2d")!.drawImage(canvas, 0, top, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+
+    if (!first) pdf.addPage();
+    pdf.addImage(slice.toDataURL("image/png"), "PNG", MARGIN_MM, MARGIN_MM, usableW, sliceH / pxPerMm);
+    first = false;
+    top = cut;
+  }
+}
+
+// Cari baris piksel yang (hampir) putih semua, mundur dari `from` maksimal `range` px.
+function findBlankRow(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  from: number,
+  range: number
+): number | null {
+  const start = Math.max(0, from - range);
+  const data = ctx.getImageData(0, start, width, from - start).data;
+  for (let y = from - start - 1; y >= 0; y--) {
+    let blank = true;
+    for (let x = 0; x < width; x += 3) {
+      const i = (y * width + x) * 4;
+      if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) {
+        blank = false;
+        break;
+      }
+    }
+    if (blank) return start + y;
+  }
+  return null;
+}
+
 export default function ExportPdfZipButton({
   entries,
   zipFileName,
@@ -37,26 +106,8 @@ export default function ExportPdfZipButton({
         if (!el) continue;
 
         const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff" });
-        const imgData = canvas.toDataURL("image/png");
-
         const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
+        addCanvasToPdf(pdf, canvas);
 
         const pdfBlob = pdf.output("blob");
         zip.file(`${entry.fileName}.pdf`, pdfBlob);
