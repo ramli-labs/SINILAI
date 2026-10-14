@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 
 function serviceClient() {
@@ -48,10 +49,12 @@ export default async function ClassSummaryPage({
 
   const submissionIds = (submissions ?? []).map((s) => s.id);
 
-  const { data: allScores } = await svc
-    .from("question_scores")
-    .select("submission_id, question_id, ai_score, ai_reasoning, teacher_override_score")
-    .in("submission_id", submissionIds.length > 0 ? submissionIds : [""]);
+  const { data: allScores } = await fetchAllRows<any>(() =>
+    svc
+      .from("question_scores")
+      .select("id, submission_id, question_id, ai_score, ai_reasoning, teacher_override_score, teacher_reasoning")
+      .in("submission_id", submissionIds.length > 0 ? submissionIds : [""])
+  );
 
   const totalStudents = submissionIds.length;
 
@@ -69,10 +72,10 @@ export default async function ClassSummaryPage({
         fullCount++;
       } else if (finalScore <= 0) {
         zeroCount++;
-        if (!sampleReasoning) sampleReasoning = extractReasoning(s.ai_reasoning);
+        if (!sampleReasoning) sampleReasoning = (s.teacher_reasoning?.trim() || extractReasoning(s.ai_reasoning));
       } else {
         partialCount++;
-        if (!sampleReasoning) sampleReasoning = extractReasoning(s.ai_reasoning);
+        if (!sampleReasoning) sampleReasoning = (s.teacher_reasoning?.trim() || extractReasoning(s.ai_reasoning));
       }
     }
 

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import PrintReportButton from "@/components/PrintReportButton";
 import ExportPdfZipButton from "@/components/ExportPdfZipButton";
@@ -65,12 +66,14 @@ export default async function ParentReportPage({
 
   const submissionIds = (submissions ?? []).map((s) => s.id);
 
-  const { data: allScores } = await svc
-    .from("question_scores")
-    .select(
-      "submission_id, question_id, ai_score, ai_reasoning, teacher_override_score"
-    )
-    .in("submission_id", submissionIds.length > 0 ? submissionIds : [""]);
+  const { data: allScores } = await fetchAllRows<any>(() =>
+    svc
+      .from("question_scores")
+      .select(
+        "id, submission_id, question_id, ai_score, ai_reasoning, teacher_override_score, teacher_reasoning"
+      )
+      .in("submission_id", submissionIds.length > 0 ? submissionIds : [""])
+  );
 
   const { data: allQuestions } = await svc
     .from("questions")
@@ -79,6 +82,13 @@ export default async function ParentReportPage({
     .order("order_index");
 
   const questionById = new Map((allQuestions ?? []).map((q) => [q.id, q]));
+  // Urutkan skor sesuai urutan soal di ujian (1(a), 1(b), ...)
+  const questionOrder = new Map((allQuestions ?? []).map((q, i) => [q.id, i]));
+  allScores.sort(
+    (a: any, b: any) =>
+      (questionOrder.get(a.question_id) ?? 9999) -
+      (questionOrder.get(b.question_id) ?? 9999)
+  );
 
   const report = (students ?? []).map((student) => {
     const subjectMap = new Map<string, { question_number: string; question_text: string | null; category: Category; reasoning: string }[]>();
@@ -101,7 +111,7 @@ export default async function ParentReportPage({
           question_number: q?.question_number ?? "?",
           question_text: q?.question_text ?? null,
           category: categorize(finalScore, q?.max_marks ?? 1),
-          reasoning: extractReasoning(sc.ai_reasoning),
+          reasoning: (sc.teacher_reasoning?.trim() || extractReasoning(sc.ai_reasoning)),
         };
       });
 
@@ -164,8 +174,8 @@ export default async function ParentReportPage({
               const kurang = items.filter((i) => i.category === "kurang");
 
               return (
-                <div key={subjectName} className="mb-5">
-                  <h3 className="mb-2 text-sm font-semibold text-gray-800">
+                <div key={subjectName} className="mb-5 break-inside-avoid">
+                  <h3 className="mb-2 break-after-avoid border-b border-gray-200 pb-1 text-sm font-semibold text-gray-800">
                     {subjectName}
                   </h3>
 
@@ -176,7 +186,7 @@ export default async function ParentReportPage({
                       </p>
                       <ul className="ml-5 list-disc text-sm text-gray-700">
                         {baik.map((i, idx) => (
-                          <li key={idx}>{i.question_text ?? i.question_number}</li>
+                          <li key={idx} className="break-inside-avoid">{i.question_text ?? i.question_number}</li>
                         ))}
                       </ul>
                     </div>
@@ -189,7 +199,7 @@ export default async function ParentReportPage({
                       </p>
                       <ul className="ml-5 list-disc text-sm text-gray-700">
                         {penguatan.map((i, idx) => (
-                          <li key={idx}>
+                          <li key={idx} className="break-inside-avoid">
                             {i.question_text ?? i.question_number}
                             {i.reasoning && (
                               <span className="text-gray-500">
@@ -210,7 +220,7 @@ export default async function ParentReportPage({
                       </p>
                       <ul className="ml-5 list-disc text-sm text-gray-700">
                         {kurang.map((i, idx) => (
-                          <li key={idx}>
+                          <li key={idx} className="break-inside-avoid">
                             {i.question_text ?? i.question_number}
                             {i.reasoning && (
                               <span className="text-gray-500">
