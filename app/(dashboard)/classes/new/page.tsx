@@ -53,7 +53,7 @@ async function createClassAction(formData: FormData) {
     if (studentsError) throw new Error(studentsError.message);
   }
 
-  redirect(`/classes/${newClass.id}`);
+  redirect(`/classes/${newClass.id}?notice=class_created`);
 }
 
 export default function NewClassPage() {

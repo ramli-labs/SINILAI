@@ -132,7 +132,7 @@ async function updateExamAction(formData: FormData) {
     }
   }
 
-  redirect(`/exams/${examId}`);
+  redirect(`/exams/${examId}?notice=exam_saved`);
 }
 
 function questionsToRawText(

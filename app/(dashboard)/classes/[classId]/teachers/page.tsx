@@ -66,7 +66,7 @@ async function addTeacherAction(formData: FormData) {
     );
   if (accessError) throw new Error(accessError.message);
 
-  redirect(`/classes/${classId}/teachers`);
+  redirect(`/classes/${classId}/teachers?notice=teacher_added`);
 }
 
 async function removeAccessAction(formData: FormData) {
@@ -90,7 +90,7 @@ async function removeAccessAction(formData: FormData) {
     .eq("teacher_id", teacherId)
     .eq("subject_id", subjectId);
 
-  redirect(`/classes/${classId}/teachers`);
+  redirect(`/classes/${classId}/teachers?notice=teacher_removed`);
 }
 
 async function resetPasswordAction(formData: FormData) {

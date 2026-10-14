@@ -101,7 +101,7 @@ async function createExamAction(formData: FormData) {
     }
   }
 
-  redirect(`/exams/${exam.id}`);
+  redirect(`/exams/${exam.id}?notice=exam_created`);
 }
 
 export default async function NewExamPage({
