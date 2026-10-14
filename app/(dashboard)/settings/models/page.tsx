@@ -49,8 +49,8 @@ export default async function ModelSettingsPage({
       <p className="mb-4 text-sm text-gray-500">
         Pilih model AI untuk tiap mapel. Sonnet 5.5 lebih teliti tapi lebih
         mahal — cocok untuk mapel dengan jawaban esai/penalaran panjang
-        (Biologi, English, GP). Haiku 5.5 lebih murah — cocok untuk soal
-        yang jawabannya lebih terstruktur (Fisika, Math, ICT).
+        (Biology, English, GP). Haiku 5.5 lebih murah — cocok untuk soal
+        yang jawabannya lebih terstruktur (Physics, Math, ICT).
       </p>
 
       {saved === "1" && (

@@ -94,7 +94,7 @@ export default async function ParentReportPage({
     const subjectMap = new Map<string, { question_number: string; question_text: string | null; category: Category; reasoning: string }[]>();
 
     for (const exam of exams ?? []) {
-      const subjectName = (exam as any).subjects?.name ?? "Lainnya";
+      const subjectName = (exam as any).subjects?.name ?? "Other";
       const submission = (submissions ?? []).find(
         (s) => s.exam_id === exam.id && s.student_id === student.id
       );

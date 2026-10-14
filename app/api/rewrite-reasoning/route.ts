@@ -1,6 +1,9 @@
 // app/api/rewrite-reasoning/route.ts
-// Buat ulang deskripsi 1 soal (question_scores.id) sesuai nilai override guru,
-// simpan ke teacher_reasoning, lalu kembalikan teksnya.
+// Buat deskripsi 1 soal (question_scores.id) sesuai nilai guru.
+// - Dengan new_score: pakai nilai yang sedang diketik, hanya kembalikan draf
+//   (disimpan nanti saat guru klik Simpan).
+// - Tanpa new_score: pakai override yang tersimpan, langsung simpan ke
+//   teacher_reasoning (dipakai tombol "Perbarui semua deskripsi").
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
@@ -22,7 +25,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Silakan login dulu." }, { status: 401 });
     }
 
-    const { score_id } = await req.json();
+    const { score_id, new_score } = await req.json();
+    const draftScore =
+      typeof new_score === "number" && !Number.isNaN(new_score) ? new_score : null;
     if (!score_id) {
       return NextResponse.json({ error: "score_id wajib diisi" }, { status: 400 });
     }
@@ -48,9 +53,10 @@ export async function POST(req: NextRequest) {
     if (!sc) {
       return NextResponse.json({ error: "Data tidak ditemukan." }, { status: 404 });
     }
-    if (sc.teacher_override_score == null) {
+    const newScore = draftScore ?? sc.teacher_override_score;
+    if (newScore == null) {
       return NextResponse.json(
-        { error: "Nilai soal ini belum diubah guru. Simpan dulu nilai override-nya." },
+        { error: "Isi dulu nilai Override untuk soal ini." },
         { status: 400 }
       );
     }
@@ -74,8 +80,12 @@ export async function POST(req: NextRequest) {
       markScheme: markScheme ?? [],
       aiScore: sc.ai_score,
       aiReasoning: sc.ai_reasoning,
-      newScore: sc.teacher_override_score,
+      newScore,
     });
+
+    if (draftScore != null) {
+      return NextResponse.json({ teacher_reasoning: text });
+    }
 
     const { error: updError } = await svc
       .from("question_scores")
