@@ -50,7 +50,7 @@ RULES YOU MUST FOLLOW:
 6. If you can read a student name/identifier on ANY of the pages (often the first page), report it in student_name_read so the teacher can verify the match — but do not use it to influence scoring.
 7. If a question's answer genuinely cannot be found on any provided page, score it 0, set confidence to "low", and note in flag_reason that no answer was found.
 8. Keep the "reasoning" field for each question SHORT — one or two concise sentences maximum. Do not write long explanations; the teacher can always look at the photo for detail. This matters especially for exams with many questions or long essay answers, where verbose reasoning risks running out of response space before you finish.
-9. Respond ONLY with valid JSON matching the exact schema given in the user message. No preamble, no markdown fences, no explanation outside the JSON.`;
+9. Submit your grading ONLY by calling the submit_grades tool. Do not write the result as text. When quoting a student's answer inside "reasoning", use single quotes, never double quotes.`;
 }
 
 function buildUserPrompt(
@@ -78,7 +78,7 @@ function buildUserPrompt(
 
 ${questionBlocks}
 
-Return JSON in exactly this shape:
+Call the submit_grades tool with data in exactly this shape:
 
 {
   "student_name_read": string | null,
@@ -102,6 +102,49 @@ CRITICAL: "question_id" is a long UUID string (like "a1b2c3d4-...") — copy it 
 
 Include one entry in "scores" for every question listed above, using its exact question_id.`;
 }
+
+// Skema tool: memaksa Claude mengirim nilai sebagai JSON terstruktur
+// (dijamin valid oleh API), bukan teks bebas yang bisa rusak.
+const GRADING_TOOL = {
+  name: "submit_grades",
+  description: "Submit the grading result for this student's answer sheet.",
+  input_schema: {
+    type: "object",
+    properties: {
+      student_name_read: { type: ["string", "null"] },
+      scores: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            question_id: { type: "string" },
+            question_number: { type: "string" },
+            ai_score: { type: "number" },
+            max_score: { type: "number" },
+            marks_awarded: { type: "array", items: { type: "string" } },
+            marks_missed: { type: "array", items: { type: "string" } },
+            reasoning: { type: "string" },
+            confidence: { type: "string", enum: ["high", "medium", "low"] },
+            flagged_for_review: { type: "boolean" },
+            flag_reason: { type: ["string", "null"] },
+          },
+          required: [
+            "question_id",
+            "question_number",
+            "ai_score",
+            "max_score",
+            "marks_awarded",
+            "marks_missed",
+            "reasoning",
+            "confidence",
+            "flagged_for_review",
+          ],
+        },
+      },
+    },
+    required: ["student_name_read", "scores"],
+  },
+};
 
 export async function gradeSubmission(
   input: GradeSubmissionInput
@@ -128,6 +171,8 @@ export async function gradeSubmission(
       model: model ?? DEFAULT_MODEL,
       max_tokens: 16000,
       system: buildSystemPrompt(),
+      tools: [GRADING_TOOL],
+      tool_choice: { type: "tool", name: "submit_grades" },
       messages: [
         {
           role: "user",
@@ -149,22 +194,32 @@ export async function gradeSubmission(
   }
 
   const data = await response.json();
-  const textBlock = data.content?.find((c: any) => c.type === "text");
+  const wasTruncated = data.stop_reason === "max_tokens";
+  const truncatedMsg = `Respons AI terpotong sebelum selesai (jawaban terlalu panjang untuk batas yang ada). Coba lagi — kalau masih terjadi, kurangi jumlah halaman per grup upload atau hubungi Bapak Ramli untuk naikkan batas lebih tinggi lagi.`;
 
+  // Jalur utama: hasil dari tool submit_grades (sudah berupa objek JSON)
+  const toolBlock = data.content?.find(
+    (c: any) => c.type === "tool_use" && c.name === "submit_grades"
+  );
+  if (toolBlock?.input && Array.isArray(toolBlock.input.scores)) {
+    if (wasTruncated) throw new Error(truncatedMsg);
+    return toolBlock.input as GradingResponse;
+  }
+
+  // Cadangan: kalau model tetap membalas dengan teks
+  const textBlock = data.content?.find((c: any) => c.type === "text");
   if (!textBlock?.text) {
-    throw new Error("Claude API returned no text content");
+    if (wasTruncated) throw new Error(truncatedMsg);
+    throw new Error(
+      `Claude API tidak mengembalikan hasil penilaian. stop_reason: ${data.stop_reason ?? "?"}`
+    );
   }
 
   let parsed: GradingResponse;
   try {
     parsed = JSON.parse(extractJson(textBlock.text));
   } catch {
-    const wasTruncated = data.stop_reason === "max_tokens";
-    if (wasTruncated) {
-      throw new Error(
-        `Respons AI terpotong sebelum selesai (jawaban terlalu panjang untuk batas yang ada). Coba lagi — kalau masih terjadi, kurangi jumlah halaman per grup upload atau hubungi Bapak Ramli untuk naikkan batas lebih tinggi lagi.`
-      );
-    }
+    if (wasTruncated) throw new Error(truncatedMsg);
     throw new Error(
       `Failed to parse Claude response as JSON: ${textBlock.text.slice(
         0,
