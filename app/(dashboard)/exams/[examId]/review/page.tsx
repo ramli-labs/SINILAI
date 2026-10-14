@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import ExportExcelButton from "@/components/ExportExcelButton";
@@ -93,12 +94,14 @@ export default async function ReviewPage({
   const submissionIds = (submissions ?? []).map((s) => s.id);
   const svc = serviceClient();
 
-  const { data: allScores, error: scoresError } = await svc
-    .from("question_scores")
-    .select(
-      "id, submission_id, question_id, ai_score, ai_reasoning, confidence, flagged_for_review, teacher_override_score"
-    )
-    .in("submission_id", submissionIds.length > 0 ? submissionIds : [""]);
+  const { data: allScores, error: scoresError } = await fetchAllRows<any>(() =>
+    svc
+      .from("question_scores")
+      .select(
+        "id, submission_id, question_id, ai_score, ai_reasoning, confidence, flagged_for_review, teacher_override_score"
+      )
+      .in("submission_id", submissionIds.length > 0 ? submissionIds : [""])
+  );
 
   if (scoresError) {
     console.error("Gagal ambil question_scores:", scoresError.message);
@@ -112,6 +115,16 @@ export default async function ReviewPage({
 
   const questionById = new Map(
     (examQuestions ?? []).map((q) => [q.id, q])
+  );
+
+  // Urutkan skor sesuai urutan soal di ujian (1(a), 1(b), ...)
+  const questionOrder = new Map(
+    (examQuestions ?? []).map((q, i) => [q.id, i])
+  );
+  allScores.sort(
+    (a: any, b: any) =>
+      (questionOrder.get(a.question_id) ?? 9999) -
+      (questionOrder.get(b.question_id) ?? 9999)
   );
 
   const exportRows = (submissions ?? []).map((sub: any) => {

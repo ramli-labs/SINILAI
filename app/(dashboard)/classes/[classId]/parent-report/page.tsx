@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import PrintReportButton from "@/components/PrintReportButton";
 import ExportPdfZipButton from "@/components/ExportPdfZipButton";
@@ -65,12 +66,14 @@ export default async function ParentReportPage({
 
   const submissionIds = (submissions ?? []).map((s) => s.id);
 
-  const { data: allScores } = await svc
-    .from("question_scores")
-    .select(
-      "submission_id, question_id, ai_score, ai_reasoning, teacher_override_score"
-    )
-    .in("submission_id", submissionIds.length > 0 ? submissionIds : [""]);
+  const { data: allScores } = await fetchAllRows<any>(() =>
+    svc
+      .from("question_scores")
+      .select(
+        "id, submission_id, question_id, ai_score, ai_reasoning, teacher_override_score"
+      )
+      .in("submission_id", submissionIds.length > 0 ? submissionIds : [""])
+  );
 
   const { data: allQuestions } = await svc
     .from("questions")
@@ -79,6 +82,13 @@ export default async function ParentReportPage({
     .order("order_index");
 
   const questionById = new Map((allQuestions ?? []).map((q) => [q.id, q]));
+  // Urutkan skor sesuai urutan soal di ujian (1(a), 1(b), ...)
+  const questionOrder = new Map((allQuestions ?? []).map((q, i) => [q.id, i]));
+  allScores.sort(
+    (a: any, b: any) =>
+      (questionOrder.get(a.question_id) ?? 9999) -
+      (questionOrder.get(b.question_id) ?? 9999)
+  );
 
   const report = (students ?? []).map((student) => {
     const subjectMap = new Map<string, { question_number: string; question_text: string | null; category: Category; reasoning: string }[]>();
