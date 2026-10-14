@@ -50,7 +50,7 @@ create table students (
 create table subjects (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,         -- Biologi, Fisika, Math, English, GP, ICT
-  default_model text not null default 'claude-sonnet-5',
+  default_model text not null default 'claude-sonnet-5-5',
   created_at timestamptz not null default now()
 );
 
@@ -210,12 +210,12 @@ create policy "teacher_access_own_scores" on question_scores
 -- SEED DATA AWAL: subjects (6 mapel Cambridge)
 -- ============================================================
 insert into subjects (name, default_model) values
-  ('Biologi', 'claude-sonnet-5'),
-  ('Fisika', 'claude-sonnet-5'),
-  ('Math', 'claude-sonnet-5'),
-  ('English', 'claude-sonnet-5'),
-  ('GP', 'claude-sonnet-5'),
-  ('ICT', 'claude-sonnet-5');
+  ('Biologi', 'claude-sonnet-5-5'),
+  ('Fisika', 'claude-sonnet-5-5'),
+  ('Math', 'claude-sonnet-5-5'),
+  ('English', 'claude-sonnet-5-5'),
+  ('GP', 'claude-sonnet-5-5'),
+  ('ICT', 'claude-sonnet-5-5');
 
 -- Catatan: default_model bisa diubah per mapel nanti (misal Haiku untuk Fisika/Math/ICT)
 -- tanpa perlu ubah kode aplikasi — cukup update baris ini.

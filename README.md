@@ -1,6 +1,6 @@
 # Sistem Koreksi Jawaban Ujian AI
 
-MVP: 1 kelas (7A Cambridge), mapel Fisika, model Claude Sonnet 5.
+MVP: 1 kelas (7A Cambridge), mapel Fisika, model Claude Sonnet 5.5.
 
 ## Cara Menjalankan
 

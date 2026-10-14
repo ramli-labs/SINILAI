@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       .update({
         status: "processed",
         total_ai_score: total_score,
-        ai_model_used: model_used ?? "claude-sonnet-5",
+        ai_model_used: model_used ?? "claude-sonnet-5-5",
         photo_urls: null,
       })
       .eq("id", submission.id);
