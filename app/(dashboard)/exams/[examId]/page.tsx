@@ -22,7 +22,11 @@ async function deleteExamAction(formData: FormData) {
   const { error } = await supabase.from("exams").delete().eq("id", examId);
   if (error) throw new Error(error.message);
 
-  redirect(exam?.class_id ? `/classes/${exam.class_id}` : "/classes");
+  redirect(
+    exam?.class_id
+      ? `/classes/${exam.class_id}?notice=exam_deleted`
+      : "/classes?notice=exam_deleted"
+  );
 }
 
 export default async function ExamDetailPage({

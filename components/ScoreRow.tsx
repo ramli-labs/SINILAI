@@ -30,6 +30,7 @@ export default function ScoreRow({
   const [reasoning, setReasoning] = useState(initialReasoning ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [generated, setGenerated] = useState(false);
 
   const hasOverride = override.trim() !== "";
   const overNum = parseFloat(override);
@@ -40,6 +41,7 @@ export default function ScoreRow({
   async function generate() {
     setLoading(true);
     setError("");
+    setGenerated(false);
     try {
       const res = await fetch("/api/rewrite-reasoning", {
         method: "POST",
@@ -49,6 +51,7 @@ export default function ScoreRow({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Gagal membuat deskripsi");
       setReasoning(data.teacher_reasoning);
+      setGenerated(true);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -128,12 +131,20 @@ export default function ScoreRow({
               <textarea
                 name={`reasoning-${scoreId}`}
                 value={reasoning}
-                onChange={(e) => setReasoning(e.target.value)}
+                onChange={(e) => {
+                  setReasoning(e.target.value);
+                  setGenerated(false);
+                }}
                 rows={2}
                 placeholder="Ketik deskripsi sendiri, atau klik ✨ Buat dengan AI."
                 className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700"
               />
               {error && <p className="text-[11px] text-red-600">{error}</p>}
+              {generated && (
+                <p className="text-[11px] text-green-700">
+                  ✓ Draf dibuat. Belum tersimpan — klik <b>Simpan Ulang / Setujui Nilai</b> di bawah.
+                </p>
+              )}
               {!reasoning.trim() && (
                 <p className="text-[11px] text-amber-700">
                   Kalau dibiarkan kosong, laporan memakai deskripsi AI yang lama (dicoret di atas).

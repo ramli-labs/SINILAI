@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Toast from "@/components/Toast";
 import { createClient } from "@/lib/supabase/client";
 
 interface Student {
@@ -58,6 +59,7 @@ export default function BulkPhotoUpload({
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [running, setRunning] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
 
   // Kunci siswa dari nama file: buang ekstensi lalu nomor halaman di akhir.
   // "AISHA MADINAH KHARIS0003.jpg" -> "aisha madinah kharis"
@@ -139,7 +141,23 @@ export default function BulkPhotoUpload({
 
   // Hanya proses grup yang belum dinilai atau yang gagal —
   // grup yang sudah berhasil tidak dinilai ulang (hemat biaya).
+  // Setelah proses selesai (running: true -> false), tampilkan ringkasan
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !running) {
+      const saved = queue.filter((it) => it.status === "matched" || it.status === "saved").length;
+      const review = queue.filter((it) => it.status === "needs_review").length;
+      const failed = queue.filter((it) => it.status === "error").length;
+      const parts = [`✓ ${saved} siswa tersimpan`];
+      if (review > 0) parts.push(`${review} perlu dipilih manual`);
+      if (failed > 0) parts.push(`${failed} gagal (klik Coba lagi)`);
+      setSummary(`Selesai: ${parts.join(", ")}.`);
+    }
+    wasRunning.current = running;
+  }, [running, queue]);
+
   async function processQueue() {
+    setSummary(null);
     setRunning(true);
     for (let i = 0; i < queue.length; i++) {
       if (queue[i].status === "waiting" || queue[i].status === "error") {
@@ -150,6 +168,7 @@ export default function BulkPhotoUpload({
   }
 
   async function retryItem(index: number) {
+    setSummary(null);
     setRunning(true);
     await processItem(index);
     setRunning(false);
@@ -244,6 +263,8 @@ export default function BulkPhotoUpload({
       setQueue((prev) =>
         prev.map((it, i) => (i === index ? { ...it, status: "saved" } : it))
       );
+      const name = students.find((st) => st.id === item.selectedStudentId)?.full_name;
+      setSummary(`✓ Nilai ${name ?? "siswa"} tersimpan.`);
     } catch (err: any) {
       setQueue((prev) =>
         prev.map((it, i) =>
@@ -257,6 +278,13 @@ export default function BulkPhotoUpload({
 
   return (
     <div className="space-y-3">
+      {summary && (
+        <Toast
+          message={summary}
+          tone={summary.includes("gagal") ? "error" : "success"}
+          durationMs={7000}
+        />
+      )}
       <div>
         <label className="mb-1 block text-sm font-medium">
           Upload 1 File ZIP (isi semua foto), atau Pilih Banyak Foto Langsung

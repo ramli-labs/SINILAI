@@ -4,6 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import ExportExcelButton from "@/components/ExportExcelButton";
 import ScoreRow from "@/components/ScoreRow";
+import SubmitButton from "@/components/SubmitButton";
+import Toast from "@/components/Toast";
+import LiveTotal from "@/components/LiveTotal";
 import RewriteAllButton from "@/components/RewriteAllButton";
 
 function serviceClient() {
@@ -87,15 +90,18 @@ async function approveSubmissionAction(formData: FormData) {
     })
     .eq("id", submissionId);
 
-  redirect(`/exams/${examId}/review`);
+  redirect(`/exams/${examId}/review?saved=${submissionId}#sub-${submissionId}`);
 }
 
 export default async function ReviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ examId: string }>;
+  searchParams: Promise<{ saved?: string }>;
 }) {
   const { examId } = await params;
+  const { saved: savedSubmissionId } = await searchParams;
   const supabase = await createClient();
 
   const { data: exam } = await supabase
@@ -169,8 +175,31 @@ export default async function ReviewPage({
     return row;
   });
 
+  // Total nilai maksimal ujian (pakai total_marks, atau jumlah nilai maks per soal)
+  const maxTotal =
+    Number(exam?.total_marks) ||
+    (examQuestions ?? []).reduce((n: number, q: any) => n + (Number(q.max_marks) || 0), 0);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const aiTotalOf = (rows: any[]) =>
+    round2(rows.reduce((n, sc) => n + (Number(sc.ai_score) || 0), 0));
+  const finalTotalOf = (rows: any[]) =>
+    round2(
+      rows.reduce(
+        (n, sc) => n + (Number(sc.teacher_override_score ?? sc.ai_score) || 0),
+        0
+      )
+    );
+
+  const savedSub: any = (submissions ?? []).find((x: any) => x.id === savedSubmissionId);
+
   return (
     <div>
+      {savedSub && (
+        <Toast
+          message={`✓ Nilai ${savedSub.students?.full_name ?? "siswa"} tersimpan.`}
+          clearParam="saved"
+        />
+      )}
       <div className="mb-1 flex items-start justify-between">
         <div>
           <h1 className="text-lg font-semibold">Review Nilai</h1>
@@ -208,12 +237,28 @@ export default async function ReviewPage({
           return (
             <div
               key={sub.id}
-              className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+              id={`sub-${sub.id}`}
+              className={
+                "scroll-mt-4 rounded-lg border bg-white p-4 shadow-sm " +
+                (sub.id === savedSubmissionId
+                  ? "border-green-400 ring-2 ring-green-200"
+                  : "border-gray-200")
+              }
             >
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-2 flex items-start justify-between gap-3">
                 <p className="font-medium">
                   {sub.students?.roll_number}. {sub.students?.full_name}
                 </p>
+                <div className="flex items-start gap-3">
+                {scores.length > 0 && (
+                  <LiveTotal
+                    key={`${sub.id}-${finalTotalOf(scores)}`}
+                    formId={`form-${sub.id}`}
+                    aiTotal={aiTotalOf(scores)}
+                    initialTotal={finalTotalOf(scores)}
+                    maxTotal={maxTotal}
+                  />
+                )}
                 <span
                   className={
                     "rounded-full px-2 py-0.5 text-xs " +
@@ -224,14 +269,19 @@ export default async function ReviewPage({
                       : "bg-gray-100 text-gray-600")
                   }
                 >
-                  {sub.status}
+                  {sub.status === "reviewed"
+                    ? "Sudah direview"
+                    : sub.status === "processed"
+                    ? "Belum direview"
+                    : sub.status}
                 </span>
+                </div>
               </div>
 
               {scores.length === 0 ? (
                 <p className="text-sm text-gray-400">Belum ada hasil penilaian.</p>
               ) : (
-                <form action={approveSubmissionAction} className="space-y-2">
+                <form id={`form-${sub.id}`} action={approveSubmissionAction} className="space-y-2">
                   <input type="hidden" name="submissionId" value={sub.id} />
                   <input type="hidden" name="examId" value={examId} />
 
@@ -264,12 +314,17 @@ export default async function ReviewPage({
                     </tbody>
                   </table>
 
-                  <button
-                    type="submit"
-                    className="mt-2 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700"
-                  >
-                    {sub.status === "reviewed" ? "Simpan Ulang" : "Setujui Nilai"}
-                  </button>
+                  <div className="mt-2 flex items-center gap-3">
+                    <SubmitButton
+                      pendingText="Menyimpan..."
+                      className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {sub.status === "reviewed" ? "Simpan Ulang" : "Setujui Nilai"}
+                    </SubmitButton>
+                    {sub.id === savedSubmissionId && (
+                      <span className="text-sm text-green-700">✓ Tersimpan</span>
+                    )}
+                  </div>
                 </form>
               )}
             </div>

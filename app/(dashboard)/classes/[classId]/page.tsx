@@ -16,7 +16,7 @@ async function deleteClassAction(formData: FormData) {
   const { error } = await supabase.from("classes").delete().eq("id", classId);
   if (error) throw new Error(error.message);
 
-  redirect("/classes");
+  redirect("/classes?notice=class_deleted");
 }
 
 export default async function ClassDetailPage({

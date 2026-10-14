@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { Suspense } from "react";
 import LogoutButton from "@/components/LogoutButton";
+import NoticeToast from "@/components/NoticeToast";
 
 export default async function DashboardLayout({
   children,
@@ -39,6 +41,9 @@ export default async function DashboardLayout({
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6 print:max-w-none print:p-0">{children}</main>
+      <Suspense fallback={null}>
+        <NoticeToast />
+      </Suspense>
     </div>
   );
 }
