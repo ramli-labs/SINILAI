@@ -190,6 +190,35 @@ export default async function ReviewPage({
       )
     );
 
+  // Sheet "Deskripsi" untuk ekspor Excel: 1 baris per soal per siswa.
+  // Deskripsi = versi guru bila ada, selain itu deskripsi AI (sama dengan Laporan Orang Tua).
+  const extractReasoning = (raw: string | null) => {
+    if (!raw) return "";
+    const parts = raw.split("|");
+    return parts.length >= 3 ? parts.slice(2).join("|").trim() : raw;
+  };
+  const categoryLabel = (score: number, max: number) =>
+    score >= max ? "Dikuasai" : score <= 0 ? "Perlu pemahaman lebih" : "Perlu penguatan";
+  const descriptionRows = (submissions ?? []).flatMap((sub: any) =>
+    (allScores ?? [])
+      .filter((sc: any) => sc.submission_id === sub.id)
+      .map((sc: any) => {
+        const q: any = questionById.get(sc.question_id);
+        const max = Number(q?.max_marks ?? 0);
+        const finalScore = Number(sc.teacher_override_score ?? sc.ai_score);
+        return {
+          "No. Absen": sub.students?.roll_number ?? "",
+          Nama: sub.students?.full_name ?? "",
+          Soal: q?.question_number ?? "",
+          Skor: finalScore,
+          Maks: max,
+          Kategori: categoryLabel(finalScore, max || 1),
+          "Diubah Guru": sc.teacher_override_score != null ? "Ya" : "",
+          Deskripsi: sc.teacher_reasoning?.trim() || extractReasoning(sc.ai_reasoning),
+        };
+      })
+  );
+
   const savedSub: any = (submissions ?? []).find((x: any) => x.id === savedSubmissionId);
 
   return (
@@ -209,6 +238,13 @@ export default async function ReviewPage({
         </div>
         {exportRows.length > 0 && (
           <ExportExcelButton
+            extraSheets={[
+              {
+                name: "Deskripsi",
+                data: descriptionRows,
+                colWidths: [10, 30, 8, 7, 7, 22, 12, 80],
+              },
+            ]}
             data={exportRows}
             filename={`Nilai_${(exam?.title ?? "ujian").replace(/\s+/g, "_")}.xlsx`}
             sheetName="Nilai"

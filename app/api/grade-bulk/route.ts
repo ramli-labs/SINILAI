@@ -15,6 +15,7 @@ import {
 } from "@/lib/apiAuth";
 import { createClient } from "@supabase/supabase-js";
 import { gradeSubmission } from "@/lib/claude";
+import { downloadPhotos, deletePhotos, photosBelongToExam } from "@/lib/photos";
 import type { Question, MarkSchemeItem } from "@/lib/types";
 
 const supabase = createClient(
@@ -43,6 +44,8 @@ function similarity(a: string, b: string): number {
 }
 
 export async function POST(req: NextRequest) {
+  // Foto yang perlu dihapus bila terjadi error (upload ulang akan membuat file baru)
+  let photosForCleanup: string[] = [];
   try {
     const { supabase: userDb, user } = await getTeacher();
     if (!user) return unauthorized();
@@ -90,16 +93,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const images = await Promise.all(
-      (photo_urls as string[]).map(async (url) => {
-        const photoResponse = await fetch(url);
-        const photoBuffer = await photoResponse.arrayBuffer();
-        const base64 = Buffer.from(photoBuffer).toString("base64");
-        const mediaType = (photoResponse.headers.get("content-type") ??
-          "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
-        return { base64, mediaType };
-      })
-    );
+    if (!photosBelongToExam(photo_urls as string[], exam_id)) {
+      return NextResponse.json({ error: "Foto tidak valid untuk ujian ini" }, { status: 400 });
+    }
+    photosForCleanup = photo_urls as string[];
+    const images = await downloadPhotos(supabase, photo_urls as string[]);
 
     const result = await gradeSubmission({
       images,
@@ -151,8 +149,12 @@ export async function POST(req: NextRequest) {
 
       const saveResult = await saveScores(submission.id, questions, result, totalScore, modelToUse);
       if (saveResult.error) {
+        await deletePhotos(supabase, photo_urls);
         return NextResponse.json({ error: saveResult.error }, { status: 500 });
       }
+
+      // Nilai sudah tersimpan: hapus file foto (kebijakan privasi)
+      await deletePhotos(supabase, photo_urls);
 
       return NextResponse.json({
         matched: true,
@@ -175,6 +177,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Grade-bulk error:", err);
+    await deletePhotos(supabase, photosForCleanup);
     return NextResponse.json(
       { error: err.message ?? "Gagal menilai" },
       { status: 500 }

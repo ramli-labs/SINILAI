@@ -11,6 +11,7 @@ import {
 } from "@/lib/apiAuth";
 import { createClient } from "@supabase/supabase-js";
 import { gradeSubmission } from "@/lib/claude";
+import { downloadPhotos, deletePhotos, photosBelongToExam } from "@/lib/photos";
 import type { Question, MarkSchemeItem } from "@/lib/types";
 
 const supabase = createClient(
@@ -87,16 +88,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const images = await Promise.all(
-      (submission.photo_urls as string[]).map(async (url) => {
-        const photoResponse = await fetch(url);
-        const photoBuffer = await photoResponse.arrayBuffer();
-        const base64 = Buffer.from(photoBuffer).toString("base64");
-        const mediaType = (photoResponse.headers.get("content-type") ??
-          "image/jpeg") as "image/jpeg" | "image/png" | "image/webp";
-        return { base64, mediaType };
-      })
-    );
+    const photoPaths = submission.photo_urls as string[];
+    if (!photosBelongToExam(photoPaths, submission.exam_id)) {
+      return NextResponse.json({ error: "Foto tidak valid untuk ujian ini" }, { status: 400 });
+    }
+    const images = await downloadPhotos(supabase, photoPaths);
 
     const result = await gradeSubmission({
       images,
@@ -171,6 +167,9 @@ export async function POST(req: NextRequest) {
         photo_urls: null,
       })
       .eq("id", submission_id);
+
+    // Nilai sudah tersimpan: hapus file foto dari Storage (kebijakan privasi)
+    await deletePhotos(supabase, photoPaths);
 
     return NextResponse.json({
       submission_id,

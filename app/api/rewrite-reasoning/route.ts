@@ -96,9 +96,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ teacher_reasoning: text });
   } catch (err: any) {
     console.error("Rewrite reasoning error:", err);
+    // Batas kecepatan / server Claude sibuk: kirim 429 supaya browser mencoba lagi
+    const busy = /\((429|529|503)\)/.test(String(err?.message ?? ""));
     return NextResponse.json(
       { error: err.message ?? "Gagal membuat deskripsi" },
-      { status: 500 }
+      { status: busy ? 429 : 500 }
     );
   }
 }
