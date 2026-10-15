@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getTeacher, unauthorized } from "@/lib/apiAuth";
-import { toParentFeedback, usesSecondPerson, extractReasoning } from "@/lib/parentFeedback";
+import { toParentFeedback, needsParentFeedback, extractReasoning } from "@/lib/parentFeedback";
 
 const svc = createServiceClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,15 +50,13 @@ export async function POST(req: NextRequest) {
     for (const r of rows ?? []) {
       const q: any = qById.get(r.question_id);
       const question = `${q?.question_number ?? "?"}${q?.question_text ? ` ${String(q.question_text).slice(0, 160)}` : ""}`;
-      const hasOverride =
+      if (!needsParentFeedback(r)) continue;
+      const changed =
         r.teacher_override_score != null && Number(r.teacher_override_score) !== Number(r.ai_score);
-      if (hasOverride) {
-        if (r.teacher_reasoning && usesSecondPerson(r.teacher_reasoning)) {
-          jobs.push({ id: r.id, target: "teacher_reasoning", text: r.teacher_reasoning, question, score: `${r.teacher_override_score}/${q?.max_marks ?? "?"}` });
-        }
-      } else if (!r.parent_feedback || usesSecondPerson(r.parent_feedback)) {
-        const src = r.parent_feedback || extractReasoning(r.ai_reasoning);
-        if (src) jobs.push({ id: r.id, target: "parent_feedback", text: src, question, score: `${r.ai_score}/${q?.max_marks ?? "?"}` });
+      if (changed) {
+        jobs.push({ id: r.id, target: "teacher_reasoning", text: r.teacher_reasoning, question, score: `${r.teacher_override_score}/${q?.max_marks ?? "?"}` });
+      } else {
+        jobs.push({ id: r.id, target: "parent_feedback", text: extractReasoning(r.ai_reasoning), question, score: `${r.ai_score}/${q?.max_marks ?? "?"}` });
       }
     }
 

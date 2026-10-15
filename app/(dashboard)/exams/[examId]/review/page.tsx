@@ -9,7 +9,7 @@ import Toast from "@/components/Toast";
 import LiveTotal from "@/components/LiveTotal";
 import RewriteAllButton from "@/components/RewriteAllButton";
 import ParentFeedbackButton from "@/components/ParentFeedbackButton";
-import { usesSecondPerson } from "@/lib/parentFeedback";
+import { needsParentFeedback } from "@/lib/parentFeedback";
 
 function serviceClient() {
   return createServiceClient(
@@ -286,13 +286,7 @@ export default async function ReviewPage({
 
       <ParentFeedbackButton
         scoreIds={(allScores ?? [])
-          .filter((sc: any) => {
-            const changed =
-              sc.teacher_override_score != null &&
-              Number(sc.teacher_override_score) !== Number(sc.ai_score);
-            if (changed) return !!sc.teacher_reasoning && usesSecondPerson(sc.teacher_reasoning);
-            return !sc.parent_feedback || usesSecondPerson(sc.parent_feedback);
-          })
+          .filter((sc: any) => needsParentFeedback(sc))
           .map((sc: any) => sc.id)}
       />
 

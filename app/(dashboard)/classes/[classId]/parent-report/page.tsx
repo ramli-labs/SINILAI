@@ -19,6 +19,17 @@ function categorize(score: number, max: number): Category {
   return "penguatan";
 }
 
+// Buang catatan internal dari teks soal (dibuat AI saat mengurai dokumen soal),
+// misalnya "(statement text truncated in source)" atau "(… mark scheme …, so check)".
+// Teks soal di database tidak diubah; ini hanya untuk tampilan laporan.
+const INTERNAL_NOTE =
+  /\s*\((?=[^()]*\b(source|extracted|mark scheme|check|truncated|uncertain|unclear|verify|inconsistent|header|not in|missing|ocr)\b)[^()]*\)/gi;
+function cleanQuestionText(text: string | null): string | null {
+  if (!text) return text;
+  const cleaned = text.replace(INTERNAL_NOTE, "").replace(/\s{2,}/g, " ").trim();
+  return cleaned || null;
+}
+
 function extractReasoning(raw: string | null): string {
   if (!raw) return "";
   const parts = raw.split("|");
@@ -109,7 +120,7 @@ export default async function ParentReportPage({
         const finalScore = sc.teacher_override_score ?? sc.ai_score;
         return {
           question_number: q?.question_number ?? "?",
-          question_text: q?.question_text ?? null,
+          question_text: cleanQuestionText(q?.question_text ?? null),
           category: categorize(finalScore, q?.max_marks ?? 1),
           reasoning: (sc.teacher_reasoning?.trim() || sc.parent_feedback?.trim() || extractReasoning(sc.ai_reasoning)),
         };
@@ -180,16 +191,12 @@ export default async function ParentReportPage({
                   </h3>
 
                   {baik.length > 0 && (
-                    <div className="mb-2">
-                      <p className="text-sm font-medium text-green-700">
-                        ✅ Mastered:
-                      </p>
-                      <ul className="ml-5 list-disc text-sm text-gray-700">
-                        {baik.map((i, idx) => (
-                          <li key={idx} className="break-inside-avoid">{i.question_text ?? i.question_number}</li>
-                        ))}
-                      </ul>
-                    </div>
+                    <p className="mb-2 text-sm text-green-700">
+                      <span className="font-medium">✅ Mastered:</span>{" "}
+                      <span className="text-gray-700">
+                        {baik.length} of {items.length} questions answered fully correctly.
+                      </span>
+                    </p>
                   )}
 
                   {penguatan.length > 0 && (
