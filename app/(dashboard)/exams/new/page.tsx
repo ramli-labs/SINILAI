@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { generateIndicatorsForExam } from "@/lib/indicators";
 import { createClient } from "@/lib/supabase/server";
 import ExamQuestionsInput from "@/components/ExamQuestionsInput";
 import SubmitButton from "@/components/SubmitButton";
@@ -99,6 +100,13 @@ async function createExamAction(formData: FormData) {
       );
       if (msError) throw new Error(msError.message);
     }
+  }
+
+  // Buat indikator untuk Laporan Orang Tua (tidak menggagalkan pembuatan ujian)
+  try {
+    await generateIndicatorsForExam(supabase as any, exam.id);
+  } catch (e) {
+    console.error("Gagal membuat indikator otomatis:", e);
   }
 
   redirect(`/exams/${exam.id}?notice=exam_created`);

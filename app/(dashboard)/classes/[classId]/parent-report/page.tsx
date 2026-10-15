@@ -36,6 +36,73 @@ function extractReasoning(raw: string | null): string {
   return parts.length >= 3 ? parts.slice(2).join("|").trim() : raw;
 }
 
+type ReportItem = {
+  question_number: string;
+  question_text: string | null;
+  indicator: string | null;
+  category: Category;
+  reasoning: string;
+};
+
+// Kelompokkan item per indikator, urutan sesuai kemunculan pertama
+function groupByIndicator(items: ReportItem[]) {
+  const groups: { indicator: string | null; items: ReportItem[] }[] = [];
+  for (const it of items) {
+    let g = groups.find((x) => x.indicator === it.indicator);
+    if (!g) {
+      g = { indicator: it.indicator, items: [] };
+      groups.push(g);
+    }
+    g.items.push(it);
+  }
+  return groups;
+}
+
+function ItemLine({ i }: { i: ReportItem }) {
+  return (
+    <>
+      {i.question_text ?? i.question_number}
+      {i.reasoning && (
+        <span className="text-gray-500">
+          {" "}
+          — <em>{i.reasoning}</em>
+        </span>
+      )}
+    </>
+  );
+}
+
+// Daftar soal yang perlu perhatian. Bila ada indikator, dikelompokkan per indikator.
+function NeedsList({ items, useIndicators }: { items: ReportItem[]; useIndicators: boolean }) {
+  if (!useIndicators) {
+    return (
+      <ul className="ml-5 list-disc text-sm text-gray-700">
+        {items.map((i, idx) => (
+          <li key={idx} className="break-inside-avoid">
+            <ItemLine i={i} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <ul className="ml-5 list-disc space-y-1 text-sm text-gray-700">
+      {groupByIndicator(items).map((g, gi) => (
+        <li key={gi} className="break-inside-avoid">
+          <span className="font-medium text-gray-800">{g.indicator ?? "Other skills"}</span>
+          <ul className="ml-5 list-[circle]">
+            {g.items.map((i, idx) => (
+              <li key={idx}>
+                <ItemLine i={i} />
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default async function ParentReportPage({
   params,
 }: {
@@ -88,7 +155,7 @@ export default async function ParentReportPage({
 
   const { data: allQuestions } = await svc
     .from("questions")
-    .select("id, exam_id, question_number, question_text, max_marks")
+    .select("id, exam_id, question_number, question_text, max_marks, indicator")
     .in("exam_id", examIds.length > 0 ? examIds : [""])
     .order("order_index");
 
@@ -102,7 +169,7 @@ export default async function ParentReportPage({
   );
 
   const report = (students ?? []).map((student) => {
-    const subjectMap = new Map<string, { question_number: string; question_text: string | null; category: Category; reasoning: string }[]>();
+    const subjectMap = new Map<string, ReportItem[]>();
 
     for (const exam of exams ?? []) {
       const subjectName = (exam as any).subjects?.name ?? "Other";
@@ -121,6 +188,7 @@ export default async function ParentReportPage({
         return {
           question_number: q?.question_number ?? "?",
           question_text: cleanQuestionText(q?.question_text ?? null),
+          indicator: (q as any)?.indicator ?? null,
           category: categorize(finalScore, q?.max_marks ?? 1),
           reasoning: (sc.teacher_reasoning?.trim() || sc.parent_feedback?.trim() || extractReasoning(sc.ai_reasoning)),
         };
@@ -183,6 +251,14 @@ export default async function ParentReportPage({
               const baik = items.filter((i) => i.category === "baik");
               const penguatan = items.filter((i) => i.category === "penguatan");
               const kurang = items.filter((i) => i.category === "kurang");
+              // Pakai indikator bila soal-soal mapel ini sudah punya indikator
+              const useIndicators = items.some((i) => i.indicator);
+              // Indikator dikuasai = semua soal dalam indikator itu benar penuh
+              const masteredIndicators = useIndicators
+                ? groupByIndicator(items)
+                    .filter((g) => g.indicator && g.items.every((i) => i.category === "baik"))
+                    .map((g) => g.indicator as string)
+                : [];
 
               return (
                 <div key={subjectName} className="mb-5 break-inside-avoid">
@@ -190,54 +266,39 @@ export default async function ParentReportPage({
                     {subjectName}
                   </h3>
 
-                  {baik.length > 0 && (
-                    <p className="mb-2 text-sm text-green-700">
-                      <span className="font-medium">✅ Mastered:</span>{" "}
-                      <span className="text-gray-700">
-                        {baik.length} of {items.length} questions answered fully correctly.
-                      </span>
-                    </p>
+                  {useIndicators ? (
+                    masteredIndicators.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-sm font-medium text-green-700">✅ Mastered:</p>
+                        <ul className="ml-5 list-disc text-sm text-gray-700">
+                          {masteredIndicators.map((t) => (
+                            <li key={t} className="break-inside-avoid">{t}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  ) : (
+                    baik.length > 0 && (
+                      <p className="mb-2 text-sm text-green-700">
+                        <span className="font-medium">✅ Mastered:</span>{" "}
+                        <span className="text-gray-700">
+                          {baik.length} of {items.length} questions answered fully correctly.
+                        </span>
+                      </p>
+                    )
                   )}
 
                   {penguatan.length > 0 && (
                     <div className="mb-2">
-                      <p className="text-sm font-medium text-amber-700">
-                        ⚠️ Needs Reinforcement:
-                      </p>
-                      <ul className="ml-5 list-disc text-sm text-gray-700">
-                        {penguatan.map((i, idx) => (
-                          <li key={idx} className="break-inside-avoid">
-                            {i.question_text ?? i.question_number}
-                            {i.reasoning && (
-                              <span className="text-gray-500">
-                                {" "}
-                                — <em>{i.reasoning}</em>
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
+                      <p className="text-sm font-medium text-amber-700">⚠️ Needs Reinforcement:</p>
+                      <NeedsList items={penguatan} useIndicators={useIndicators} />
                     </div>
                   )}
 
                   {kurang.length > 0 && (
                     <div className="mb-2">
-                      <p className="text-sm font-medium text-red-700">
-                        ❌ Needs More Understanding:
-                      </p>
-                      <ul className="ml-5 list-disc text-sm text-gray-700">
-                        {kurang.map((i, idx) => (
-                          <li key={idx} className="break-inside-avoid">
-                            {i.question_text ?? i.question_number}
-                            {i.reasoning && (
-                              <span className="text-gray-500">
-                                {" "}
-                                — <em>{i.reasoning}</em>
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
+                      <p className="text-sm font-medium text-red-700">❌ Needs More Understanding:</p>
+                      <NeedsList items={kurang} useIndicators={useIndicators} />
                     </div>
                   )}
                 </div>
