@@ -103,7 +103,14 @@ export function usesSecondPerson(text: string | null | undefined): boolean {
     .replace(/“[^”]*”/g, " ")
     .replace(/‘[^’]*’/g, " ")
     .replace(/(^|[\s(])'[^']*'(?=[\s.,;:!?)]|$)/g, " ");
-  return /\b(you|your|you're|you've|yours)\b/i.test(withoutQuotes);
+  // Hanya pola yang memang MENYAPA siswa, bukan kata "you/your" yang sedang dibahas
+  // (mis. English: "The student wrote your instead of you're").
+  return (
+    /^\s*(you|your)\b/i.test(withoutQuotes) ||
+    /\byour (answer|work|response|writing|table|speech|explanation|essay|calculation|diagram)\b/i.test(withoutQuotes) ||
+    /\byou (correctly|need|needed|should|have|had|did|wrote|gave|identified|explained|used|showed|named|missed|chose|got|can|could|must|are|were)\b/i.test(withoutQuotes) ||
+    /\b(you're|you've)\b/i.test(withoutQuotes.replace(/\b(your|you're)\s+(instead of|and|or|vs\.?)\s+(your|you're)\b/gi, " "))
+  );
 }
 
 // Apakah baris skor ini masih perlu dibuatkan/diseragamkan deskripsi ramah orang tua?
