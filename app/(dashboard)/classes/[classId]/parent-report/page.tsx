@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import PrintReportButton from "@/components/PrintReportButton";
-import ExportPdfZipButton from "@/components/ExportPdfZipButton";
+import ReportPdfButtons from "@/components/ReportPdfButtons";
+import { subjectDisplayName, type PdfStudent, type PdfGroup } from "@/lib/reportTypes";
 
 function serviceClient() {
   return createServiceClient(
@@ -165,6 +166,55 @@ function NeedsList({
   );
 }
 
+// Data untuk PDF teks asli — logika kategori sama dengan tampilan halaman
+function toPdfSubject(name: string, items: ReportItem[]) {
+  const baik = items.filter((i) => i.category === "baik");
+  const useIndicators = items.some((i) => i.indicator);
+  const toItem = (i: ReportItem) => ({
+    number: i.question_number,
+    text: i.question_text ?? i.question_number,
+    reasoning: i.reasoning,
+  });
+  const reinforcement: PdfGroup[] = [];
+  const more: PdfGroup[] = [];
+  const masteredIndicators: string[] = [];
+
+  if (useIndicators) {
+    for (const g of groupByIndicator(items)) {
+      const got = g.items.reduce((n, i) => n + i.score, 0);
+      const max = g.items.reduce((n, i) => n + i.max, 0);
+      const ratio = max > 0 ? got / max : 0;
+      const correct = g.items.filter((i) => i.category === "baik").length;
+      const notYet = g.items.filter((i) => i.category !== "baik");
+      const group: PdfGroup = {
+        indicator: g.indicator ?? "Other skills",
+        correct,
+        total: g.items.length,
+        items: notYet.map(toItem),
+      };
+      if (notYet.length === 0) {
+        if (g.indicator) masteredIndicators.push(g.indicator);
+      } else if (ratio >= 0.5) reinforcement.push(group);
+      else more.push(group);
+    }
+  } else {
+    const pen = items.filter((i) => i.category === "penguatan");
+    const kur = items.filter((i) => i.category === "kurang");
+    if (pen.length) reinforcement.push({ indicator: null, correct: 0, total: 0, items: pen.map(toItem) });
+    if (kur.length) more.push({ indicator: null, correct: 0, total: 0, items: kur.map(toItem) });
+  }
+
+  return {
+    name: subjectDisplayName(name),
+    useIndicators,
+    masteredCount: baik.length,
+    total: items.length,
+    masteredIndicators,
+    reinforcement,
+    more,
+  };
+}
+
 export default async function ParentReportPage({
   params,
 }: {
@@ -279,6 +329,14 @@ export default async function ParentReportPage({
     return { student, subjects: Array.from(subjectMap.entries()), indicatorMap };
   });
 
+  const pdfStudents: PdfStudent[] = report.map(({ student, subjects, indicatorMap }) => ({
+    id: student.id,
+    name: student.full_name,
+    className: classData.name,
+    subjects: subjects.map(([name, items]) => toPdfSubject(name, items)),
+    indicatorMap: indicatorMap.map((m) => ({ subject: subjectDisplayName(m.subject), entries: m.entries })),
+  }));
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between print:hidden">
@@ -286,13 +344,9 @@ export default async function ParentReportPage({
           Laporan Orang Tua — {classData.name}
         </h1>
         <div className="flex gap-2">
-          <ExportPdfZipButton
-            entries={report.map(({ student }) => ({
-              elementId: `report-card-${student.id}`,
-              fileName: `Laporan_${student.full_name.replace(/\s+/g, "_")}`,
-              footer: `${student.full_name} · ${classData.name}`,
-            }))}
-            zipFileName={`Laporan_${classData.name.replace(/\s+/g, "_")}.zip`}
+          <ReportPdfButtons
+            students={pdfStudents}
+            fileBase={classData.name.replace(/\s+/g, "_")}
           />
           <PrintReportButton />
         </div>
@@ -371,7 +425,7 @@ export default async function ParentReportPage({
                       tidak tertinggal sendirian di bawah halaman. Sisanya boleh mengalir. */}
                   <div className="break-inside-avoid" data-keep-with-next>
                     <h3 className="mb-2 break-after-avoid border-b border-gray-200 pb-1 text-sm font-semibold text-gray-800">
-                      {subjectName}
+                      {subjectDisplayName(subjectName)}
                     </h3>
                     {useIndicators ? (
                       <>
@@ -440,7 +494,7 @@ export default async function ParentReportPage({
                             Indicator Map — which questions assess each indicator
                           </p>
                         )}
-                        <p className="font-medium text-gray-700">{m.subject}</p>
+                        <p className="font-medium text-gray-700">{subjectDisplayName(m.subject)}</p>
                         {m.entries[0] && (
                           <ul className="ml-4 list-disc">
                             <li>{entryLine(m.entries[0])}</li>
