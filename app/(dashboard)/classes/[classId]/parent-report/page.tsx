@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import PrintReportButton from "@/components/PrintReportButton";
 import ReportPdfButtons from "@/components/ReportPdfButtons";
+import StudentReportCard from "@/components/StudentReportCard";
 import { subjectDisplayName, type PdfStudent, type PdfGroup } from "@/lib/reportTypes";
 
 function serviceClient() {
@@ -348,174 +348,21 @@ export default async function ParentReportPage({
             students={pdfStudents}
             fileBase={classData.name.replace(/\s+/g, "_")}
           />
-          <PrintReportButton />
         </div>
       </div>
 
-      <div className="space-y-8">
-        {report.map(({ student, subjects, indicatorMap }) => (
-          <div
-            key={student.id}
-            id={`report-card-${student.id}`}
-            lang="en"
-            className="report-justify rounded-lg border border-gray-200 bg-white p-6 shadow-sm print:break-after-page print:border-0 print:shadow-none"
-          >
-            <div className="mb-4 border-b border-gray-200 pb-3 text-center">
-              <img
-                src="/logo.png"
-                alt="School Logo"
-                className="mx-auto mb-2 h-20 object-contain"
-              />
-              <h2 className="text-base font-semibold">Student Learning Report</h2>
-            </div>
+      {/* Footer cetak browser (Ctrl+P): "Nama | Kelas" per siswa lewat named page.
+          Untuk nomor halaman per siswa, pakai tombol Cetak (PDF). */}
+      <style>{pdfStudents
+        .map(
+          (s, i) =>
+            `@page slr-${i} { @bottom-center { content: ${JSON.stringify(`${s.name} | ${s.className}`)}; font-family: Inter, sans-serif; font-size: 8.5pt; color: #666; } }`
+        )
+        .join("\n")}</style>
 
-            <p className="mb-4 text-sm">
-              <span className="font-medium">Name:</span> {student.full_name} ·{" "}
-              <span className="font-medium">Class:</span> {classData.name}
-            </p>
-
-            {subjects.length === 0 && (
-              <p className="text-sm text-gray-400">
-                No exam results have been recorded for this student yet.
-              </p>
-            )}
-
-            {subjects.map(([subjectName, items]) => {
-              const baik = items.filter((i) => i.category === "baik");
-              // Pakai indikator bila soal-soal mapel ini sudah punya indikator
-              const useIndicators = items.some((i) => i.indicator);
-
-              // Tanpa indikator: kategori per soal (seperti sebelumnya).
-              // Dengan indikator: kategori per indikator dari persentase perolehan nilai:
-              //   100% → Mastered, >= 50% → Needs Reinforcement, < 50% → Needs More Understanding.
-              //   Yang ditampilkan di bawah indikator hanya soal yang belum benar penuh.
-              let penguatan = items.filter((i) => i.category === "penguatan");
-              let kurang = items.filter((i) => i.category === "kurang");
-              let masteredIndicators: string[] = [];
-              if (useIndicators) {
-                penguatan = [];
-                kurang = [];
-                for (const g of groupByIndicator(items)) {
-                  const got = g.items.reduce((n, i) => n + i.score, 0);
-                  const max = g.items.reduce((n, i) => n + i.max, 0);
-                  const ratio = max > 0 ? got / max : 0;
-                  const allCorrect = g.items.every((i) => i.category === "baik");
-                  const notYet = g.items.filter((i) => i.category !== "baik");
-                  if (allCorrect) {
-                    if (g.indicator) masteredIndicators.push(g.indicator);
-                  } else if (ratio >= 0.5) {
-                    penguatan.push(...notYet);
-                  } else {
-                    kurang.push(...notYet);
-                  }
-                }
-              }
-              // Jumlah soal benar penuh per indikator (dari semua soal mapel ini)
-              const indicatorCounts = new Map<string | null, { correct: number; total: number }>();
-              for (const g of groupByIndicator(items)) {
-                indicatorCounts.set(g.indicator, {
-                  correct: g.items.filter((i) => i.category === "baik").length,
-                  total: g.items.length,
-                });
-              }
-
-              return (
-                <div key={subjectName} className="mb-5">
-                  {/* Judul mapel + 1–2 baris pertama isinya dibuat satu kesatuan, supaya judul
-                      tidak tertinggal sendirian di bawah halaman. Sisanya boleh mengalir. */}
-                  <div className="break-inside-avoid" data-keep-with-next>
-                    <h3 className="mb-2 break-after-avoid border-b border-gray-200 pb-1 text-sm font-semibold text-gray-800">
-                      {subjectDisplayName(subjectName)}
-                    </h3>
-                    {useIndicators ? (
-                      <>
-                        <p className="text-sm text-green-700">
-                          <span className="font-medium">✅ Mastered</span>{" "}
-                          <span className="text-gray-600">
-                            ({baik.length} of {items.length} questions answered fully correctly)
-                          </span>
-                          {masteredIndicators.length > 0 ? ":" : ""}
-                        </p>
-                        {masteredIndicators.length > 0 && (
-                          <ul className="ml-5 list-disc text-sm text-gray-700">
-                            <li>{masteredIndicators[0]}</li>
-                          </ul>
-                        )}
-                      </>
-                    ) : (
-                      <p className="mb-2 text-sm text-green-700">
-                        <span className="font-medium">✅ Mastered:</span>{" "}
-                        <span className="text-gray-700">
-                          {baik.length} of {items.length} questions answered fully correctly.
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                  {useIndicators && masteredIndicators.length > 1 && (
-                    <ul className="ml-5 list-disc text-sm text-gray-700">
-                      {masteredIndicators.slice(1).map((t) => (
-                        <li key={t} className="break-inside-avoid">{t}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {useIndicators && <div className="mb-2" />}
-
-                  {penguatan.length > 0 && (
-                    <div className="mb-2">
-                      <p className="text-sm font-medium text-amber-700">⚠️ Needs Reinforcement:</p>
-                      <NeedsList items={penguatan} useIndicators={useIndicators} counts={indicatorCounts} />
-                    </div>
-                  )}
-
-                  {kurang.length > 0 && (
-                    <div className="mb-2">
-                      <p className="text-sm font-medium text-red-700">❌ Needs More Understanding:</p>
-                      <NeedsList items={kurang} useIndicators={useIndicators} counts={indicatorCounts} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {indicatorMap.length > 0 && (
-              <div className="mt-6 border-t border-gray-200 pt-3 text-[11px] leading-snug text-gray-600">
-                {indicatorMap.map((m, mi) => {
-                  const entryLine = (e: IndicatorMapEntry) => (
-                    <>
-                      {e.indicator} <span className="text-gray-500">— Questions {e.questions}</span>
-                    </>
-                  );
-                  return (
-                    <div key={m.subject} className="mb-1.5">
-                      {/* Judul (peta + nama mapel) menempel dengan baris pertamanya; sisanya boleh mengalir */}
-                      <div className="break-inside-avoid" data-keep-with-next>
-                        {mi === 0 && (
-                          <p className="mb-1 font-semibold text-gray-700">
-                            Indicator Map — which questions assess each indicator
-                          </p>
-                        )}
-                        <p className="font-medium text-gray-700">{subjectDisplayName(m.subject)}</p>
-                        {m.entries[0] && (
-                          <ul className="ml-4 list-disc">
-                            <li>{entryLine(m.entries[0])}</li>
-                          </ul>
-                        )}
-                      </div>
-                      {m.entries.length > 1 && (
-                        <ul className="ml-4 list-disc">
-                          {m.entries.slice(1).map((e, idx) => (
-                            <li key={idx} className="break-inside-avoid">
-                              {entryLine(e)}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+      <div className="slr-list">
+        {pdfStudents.map((s, si) => (
+          <StudentReportCard key={s.id} s={s} index={si} />
         ))}
       </div>
     </div>

@@ -199,3 +199,21 @@ export async function studentPdfBytes(pdfMake: any, banner: string, s: PdfStuden
     }
   });
 }
+
+// Gabungkan PDF semua siswa (nomor halaman tetap mulai 1 per siswa)
+export async function buildCombinedPdf(
+  students: PdfStudent[],
+  onProgress?: (n: number) => void
+): Promise<Uint8Array> {
+  const { pdfMake, banner } = await loadPdfMake();
+  const { PDFDocument } = await import("pdf-lib");
+  const merged = await PDFDocument.create();
+  merged.setTitle("Student Learning Report");
+  for (let i = 0; i < students.length; i++) {
+    const bytes = await studentPdfBytes(pdfMake, banner, students[i]);
+    const src = await PDFDocument.load(bytes);
+    (await merged.copyPages(src, src.getPageIndices())).forEach((pg) => merged.addPage(pg));
+    onProgress?.(i + 1);
+  }
+  return merged.save();
+}
