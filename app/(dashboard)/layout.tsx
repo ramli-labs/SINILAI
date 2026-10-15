@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Suspense } from "react";
 import LogoutButton from "@/components/LogoutButton";
 import NoticeToast from "@/components/NoticeToast";
+import { getCurrentTeacher, isAdminRole, ROLE_LABEL } from "@/lib/roles";
 
 export default async function DashboardLayout({
   children,
@@ -16,11 +17,12 @@ export default async function DashboardLayout({
 
   if (!user) redirect("/login");
 
-  const { data: teacher } = await supabase
-    .from("teachers")
-    .select("full_name")
-    .eq("id", user.id)
-    .single();
+  const teacher = await getCurrentTeacher(user.id);
+  if (teacher && !teacher.is_active) {
+    await supabase.auth.signOut();
+    redirect("/login?inactive=1");
+  }
+  const admin = isAdminRole(teacher?.role);
 
   return (
     <div className="min-h-screen">
@@ -33,8 +35,23 @@ export default async function DashboardLayout({
             <a href="/classes" className="text-gray-600 hover:text-gray-900">
               Kelas
             </a>
+            {admin && (
+              <>
+                <a href="/admin/teachers" className="text-gray-600 hover:text-gray-900">
+                  Kelola Guru
+                </a>
+                <a href="/settings/models" className="text-gray-600 hover:text-gray-900">
+                  Model AI
+                </a>
+              </>
+            )}
             <span className="text-gray-400">
               {teacher?.full_name ?? user.email}
+              {admin && teacher && (
+                <span className="ml-1 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
+                  {ROLE_LABEL[teacher.role]}
+                </span>
+              )}
             </span>
             <LogoutButton />
           </nav>
