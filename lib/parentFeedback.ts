@@ -95,8 +95,34 @@ export async function toParentFeedback(items: FeedbackItem[]): Promise<Map<strin
 }
 
 // Deskripsi masih menyapa siswa langsung ("you/your")?
+// Kata di dalam kutipan diabaikan — misalnya di English: The student wrote 'Have you ever…'
 export function usesSecondPerson(text: string | null | undefined): boolean {
-  return !!text && /\b(you|your|you're|you've|yours)\b/i.test(text);
+  if (!text) return false;
+  const withoutQuotes = text
+    .replace(/"[^"]*"/g, " ")
+    .replace(/“[^”]*”/g, " ")
+    .replace(/‘[^’]*’/g, " ")
+    .replace(/(^|[\s(])'[^']*'(?=[\s.,;:!?)]|$)/g, " ");
+  return /\b(you|your|you're|you've|yours)\b/i.test(withoutQuotes);
+}
+
+// Apakah baris skor ini masih perlu dibuatkan/diseragamkan deskripsi ramah orang tua?
+// Dipakai bersama oleh halaman Review (hitungan) dan API (pemrosesan) supaya konsisten.
+export function needsParentFeedback(row: {
+  ai_score: number | null;
+  ai_reasoning: string | null;
+  teacher_override_score: number | null;
+  teacher_reasoning: string | null;
+  parent_feedback: string | null;
+}): boolean {
+  const changed =
+    row.teacher_override_score != null &&
+    Number(row.teacher_override_score) !== Number(row.ai_score);
+  if (changed) return !!row.teacher_reasoning && usesSecondPerson(row.teacher_reasoning);
+  // Sudah punya versi ramah orang tua → tidak diproses lagi
+  if (row.parent_feedback && row.parent_feedback.trim()) return false;
+  // Tidak ada deskripsi AI yang bisa diubah → lewati
+  return extractReasoning(row.ai_reasoning).trim() !== "";
 }
 
 // Ambil bagian alasan dari format "Awarded: ... | Missed: ... | alasan"
