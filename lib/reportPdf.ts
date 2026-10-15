@@ -9,7 +9,7 @@ const GREEN = "#1f7a3a";
 const AMBER = "#a16207";
 const RED = "#b91c1c";
 const GRAY = "#555555";
-const LIGHT = "#cfd4dc";
+const LIGHT = "#bfbfbf";
 
 let pdfMakePromise: Promise<any> | null = null;
 
@@ -56,8 +56,11 @@ export async function loadPdfMake(): Promise<{ pdfMake: any; banner: string }> {
   return pdfMakePromise;
 }
 
-const rule = (color = LIGHT, top = 2, bottom = 6) => ({
-  canvas: [{ type: "line", x1: 0, y1: 0, x2: 483, y2: 0, lineWidth: 0.6, lineColor: color }],
+// Ukuran mengikuti contoh laporan: A4, margin kiri/kanan 2 cm, teks 9 pt.
+const CONTENT_W = 481.85;
+
+const rule = (color = LIGHT, top = 2, bottom = 6, width = 0.75) => ({
+  canvas: [{ type: "line", x1: 0, y1: 0, x2: CONTENT_W, y2: 0, lineWidth: width, lineColor: color }],
   margin: [0, top, 0, bottom],
 });
 
@@ -65,7 +68,7 @@ const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 
 // Baris bernomor dengan kolom nomor tetap (rapi seperti daftar Word)
 const numbered = (marker: string, body: any, opts: any = {}) => ({
-  columns: [{ width: 18, text: marker, bold: !!opts.boldMarker }, { width: "*", ...body }],
+  columns: [{ width: opts.markerWidth ?? 20, text: marker, bold: !!opts.boldMarker }, { width: "*", ...body }],
   ...opts.extra,
 });
 
@@ -78,26 +81,26 @@ function itemBlock(it: { number: string; text: string; reasoning: string }, k: n
       stack: [
         { text: it.text || it.number },
         it.reasoning
-          ? { text: it.reasoning, italics: true, color: GRAY, alignment: "justify", margin: [0, 1, 0, 0] }
+          ? { text: it.reasoning, italics: true, color: GRAY, alignment: "justify" }
           : "",
       ],
-    }),
+    }, { markerWidth: 22 }),
   };
 }
 
 // Satu kelompok indikator → { head: judul + soal pertama (dikunci bersama), rest: soal lainnya }
 function groupParts(g: PdfGroup, idx: number) {
-  const items = g.items.map((it, k) => ({ stack: [itemBlock(it, k)], margin: [18, 0, 0, 0] }));
+  const items = g.items.map((it, k) => ({ stack: [itemBlock(it, k)], margin: [20, 0, 0, 0] }));
   if (!g.indicator) return { head: items.slice(0, 1), rest: items.slice(1) };
   const title = numbered(
     `${idx + 1}.`,
     {
       stack: [
         { text: g.indicator, bold: true },
-        { text: `(${g.correct} of ${g.total} correct)`, color: GRAY, margin: [0, 1, 0, 3] },
+        { text: `(${g.correct} of ${g.total} correct)`, color: GRAY, margin: [0, 0, 0, 4] },
       ],
     },
-    { boldMarker: true, extra: { margin: [0, 2, 0, 0] } }
+    { boldMarker: true }
   );
   return { head: [title, ...items.slice(0, 1)], rest: items.slice(1) };
 }
@@ -107,11 +110,11 @@ const keep = (...blocks: any[]) => ({ unbreakable: true, stack: blocks });
 
 export function buildDocDefinition(s: PdfStudent, banner: string) {
   const content: any[] = [
-    { image: banner, width: 400, alignment: "center", margin: [0, 0, 0, 10] },
-    { text: "Student Learning Report", fontSize: 17, bold: true, color: NAVY, alignment: "center", margin: [0, 0, 0, 8] },
-    { text: `Name: ${s.name}`, bold: true, alignment: "center", fontSize: 10 },
-    { text: `Class: ${s.className}`, bold: true, alignment: "center", fontSize: 10, margin: [0, 1, 0, 8] },
-    rule("#333333", 0, 12),
+    { image: banner, width: 411, alignment: "center", margin: [0, 0, 0, 13] },
+    { text: "Student Learning Report", fontSize: 16, bold: true, color: NAVY, alignment: "center", margin: [0, 0, 0, 6] },
+    { text: `Name: ${s.name}`, bold: true, alignment: "center", fontSize: 10, lineHeight: 1.08 },
+    { text: `Class: ${s.className}`, bold: true, alignment: "center", fontSize: 10, lineHeight: 1.08, margin: [0, 0, 0, 8] },
+    rule(NAVY, 0, 18, 1),
   ];
 
   if (s.subjects.length === 0) {
@@ -120,27 +123,27 @@ export function buildDocDefinition(s: PdfStudent, banner: string) {
 
   for (const sub of s.subjects) {
     const subjectTitle = [
-      { text: sub.name, bold: true, fontSize: 10.5, color: NAVY, alignment: "center", margin: [0, 6, 0, 2] },
-      rule(LIGHT, 2, 8),
+      { text: sub.name, bold: true, fontSize: 10, lineHeight: 1.08, color: NAVY, alignment: "center" },
+      rule(LIGHT, 4, 9),
     ];
     const masteredTitle = {
       text: `Mastered (${sub.masteredCount} of ${sub.total} questions answered fully correctly)${sub.masteredIndicators.length ? ":" : ""}`,
       bold: true,
       color: GREEN,
-      margin: [0, 0, 0, 3],
+      margin: [0, 0, 0, 4],
     };
     const masteredLines = sub.masteredIndicators.map((t, i) =>
-      numbered(`${i + 1}.`, { text: t }, { extra: { margin: [0, 0, 0, 1.5] } })
+      numbered(`${i + 1}.`, { text: t }, { extra: { margin: [0, 0, 0, 3] } })
     );
 
     // Judul mapel + "Mastered" + baris pertamanya dikunci bersama
     content.push(keep(...subjectTitle, masteredTitle, ...masteredLines.slice(0, 1)));
     content.push(...masteredLines.slice(1));
-    content.push({ text: "", margin: [0, 0, 0, 6] });
+    content.push({ text: "", margin: [0, 0, 0, 5] });
 
     const section = (title: string, color: string, groups: PdfGroup[]) => {
       if (!groups.length) return;
-      const heading = { text: title, bold: true, color, margin: [0, 2, 0, 5] };
+      const heading = { text: title, bold: true, color, margin: [0, 0, 0, 8] };
       groups.forEach((g, i) => {
         const { head, rest } = groupParts(g, i);
         // Judul kategori (untuk kelompok pertama) + judul indikator + soal pertama dikunci bersama
@@ -148,26 +151,27 @@ export function buildDocDefinition(s: PdfStudent, banner: string) {
         content.push(...rest);
         content.push({ text: "", margin: [0, 0, 0, 3] });
       });
+      content.push({ text: "", margin: [0, 0, 0, 2] });
     };
     section("Needs Reinforcement:", AMBER, sub.reinforcement);
     section("Needs More Understanding:", RED, sub.more);
-    content.push({ text: "", margin: [0, 0, 0, 6] });
+    content.push({ text: "", margin: [0, 0, 0, 9] });
   }
 
   if (s.indicatorMap.length) {
     const mapTitle = [
-      { text: "Indicator Map: which questions assess each indicator", bold: true, fontSize: 10.5, color: NAVY, margin: [0, 10, 0, 2] },
-      rule(LIGHT, 2, 6),
+      { text: "Indicator Map: which questions assess each indicator", bold: true, fontSize: 10, lineHeight: 1.08, color: NAVY, margin: [0, 6, 0, 0] },
+      rule(LIGHT, 4, 8),
     ];
     s.indicatorMap.forEach((m, mi) => {
       const lines = m.entries.map((e, i) =>
         numbered(
           `${i + 1}.`,
           { text: [`${e.indicator}: `, { text: `Questions ${e.questions}`, italics: true, color: GRAY }] },
-          { extra: { fontSize: 8.5, margin: [0, 0, 0, 1] } }
+          { extra: { margin: [0, 0, 0, 0] } }
         )
       );
-      const subjectName = { text: m.subject, bold: true, fontSize: 8.5, margin: [0, 4, 0, 1] };
+      const subjectName = { text: m.subject, bold: true, margin: [0, mi === 0 ? 0 : 5, 0, 0] };
       content.push(mi === 0 ? keep(...mapTitle, subjectName, ...lines.slice(0, 1)) : keep(subjectName, ...lines.slice(0, 1)));
       content.push(...lines.slice(1));
     });
@@ -175,16 +179,16 @@ export function buildDocDefinition(s: PdfStudent, banner: string) {
 
   return {
     pageSize: "A4",
-    pageMargins: [56, 48, 56, 52],
+    pageMargins: [56.7, 51, 56.7, 50],
     info: { title: `Student Learning Report - ${s.name}` },
-    defaultStyle: { font: "Inter", fontSize: 9.5, lineHeight: 1.18, color: "#111111" },
+    defaultStyle: { font: "Inter", fontSize: 9, lineHeight: 1.1, color: "#111111" },
     content,
     footer: (currentPage: number) => ({
       text: `${s.name} | ${s.className} | Page ${currentPage}`,
       alignment: "center",
-      fontSize: 8.5,
+      fontSize: 9,
       color: "#666666",
-      margin: [0, 18, 0, 0],
+      margin: [0, 13, 0, 0],
     }),
   };
 }

@@ -32,12 +32,14 @@ export default function StudentReportCard({ s, index }: { s: PdfStudent; index: 
               </div>
             ))}
           </div>
-          {sub.masteredIndicators.slice(1).map((t, i) => (
-            <div key={t} className="slr-row slr-keep">
-              <span className="slr-marker">{i + 2}.</span>
-              <span>{t}</span>
-            </div>
-          ))}
+          <div className="slr-mastered-list">
+            {sub.masteredIndicators.slice(1).map((t, i) => (
+              <div key={t} className="slr-row slr-keep">
+                <span className="slr-marker">{i + 2}.</span>
+                <span>{t}</span>
+              </div>
+            ))}
+          </div>
 
           {(
             [
@@ -63,7 +65,7 @@ export default function StudentReportCard({ s, index }: { s: PdfStudent; index: 
                       <div className="slr-keep">
                         {gi === 0 && <p className={`slr-cat ${cls}`}>{title}</p>}
                         {g.indicator ? (
-                          <div className="slr-row">
+                          <div className="slr-row slr-group-head">
                             <span className="slr-marker slr-bold">{gi + 1}.</span>
                             <div>
                               <div className="slr-bold">{g.indicator}</div>
@@ -97,10 +99,10 @@ export default function StudentReportCard({ s, index }: { s: PdfStudent; index: 
                 {mi === 0 && (
                   <>
                     <h3 className="slr-map-title">Indicator Map: which questions assess each indicator</h3>
-                    <hr className="slr-rule" />
+                    <hr className="slr-rule slr-map-rule" />
                   </>
                 )}
-                <p className="slr-map-subject">{m.subject}</p>
+                <p className={`slr-map-subject${mi === 0 ? " slr-first" : ""}`}>{m.subject}</p>
                 {m.entries.slice(0, 1).map((e) => (
                   <div key={0} className="slr-row slr-map-row">
                     <span className="slr-marker">1.</span>

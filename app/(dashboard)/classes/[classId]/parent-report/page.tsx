@@ -356,7 +356,7 @@ export default async function ParentReportPage({
       <style>{pdfStudents
         .map(
           (s, i) =>
-            `@page slr-${i} { @bottom-center { content: ${JSON.stringify(`${s.name} | ${s.className}`)}; font-family: Inter, sans-serif; font-size: 8.5pt; color: #666; } }`
+            `@page slr-${i} { @bottom-center { content: ${JSON.stringify(`${s.name} | ${s.className}`)}; font-family: Inter, sans-serif; font-size: 9pt; color: #666; } }`
         )
         .join("\n")}</style>
 
