@@ -77,6 +77,7 @@ create table questions (
   question_number text not null,     -- "1(a)", "1(b)", "2(a)(i)", dst
   question_text text,                -- opsional, teks soal untuk konteks AI
   max_marks int not null,
+  indicator text,                    -- indikator can-do untuk laporan (beberapa soal bisa sama)
   order_index int not null,          -- urutan tampil
   created_at timestamptz not null default now()
 );

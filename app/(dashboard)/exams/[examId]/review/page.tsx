@@ -9,6 +9,7 @@ import Toast from "@/components/Toast";
 import LiveTotal from "@/components/LiveTotal";
 import RewriteAllButton from "@/components/RewriteAllButton";
 import ParentFeedbackButton from "@/components/ParentFeedbackButton";
+import IndicatorPanel from "@/components/IndicatorPanel";
 import { needsParentFeedback } from "@/lib/parentFeedback";
 
 function serviceClient() {
@@ -153,7 +154,7 @@ export default async function ReviewPage({
 
   const { data: examQuestions } = await svc
     .from("questions")
-    .select("id, question_number, max_marks")
+    .select("id, question_number, max_marks, indicator")
     .eq("exam_id", examId)
     .order("order_index");
 
@@ -239,6 +240,18 @@ export default async function ReviewPage({
       })
   );
 
+  // Kelompok indikator (urut sesuai soal pertama yang memakainya)
+  const indicatorGroups: { text: string; questionNumbers: string[] }[] = [];
+  for (const q of (examQuestions ?? []) as any[]) {
+    if (!q.indicator) continue;
+    let g = indicatorGroups.find((x) => x.text === q.indicator);
+    if (!g) {
+      g = { text: q.indicator, questionNumbers: [] };
+      indicatorGroups.push(g);
+    }
+    g.questionNumbers.push(q.question_number);
+  }
+
   const savedSub: any = (submissions ?? []).find((x: any) => x.id === savedSubmissionId);
 
   return (
@@ -272,6 +285,14 @@ export default async function ReviewPage({
         )}
       </div>
       <div className="mb-4" />
+
+      <IndicatorPanel
+        examId={examId}
+        groups={indicatorGroups}
+        unassigned={(examQuestions ?? [])
+          .filter((q: any) => !q.indicator)
+          .map((q: any) => q.question_number)}
+      />
 
       <RewriteAllButton
         scoreIds={(allScores ?? [])
