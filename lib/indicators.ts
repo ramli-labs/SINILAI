@@ -112,6 +112,24 @@ export async function generateIndicatorsForExam(
     }
   }
 
+  // Soal yang terlewat oleh AI: ikut indikator soal sebelumnya (soal berurutan
+  // biasanya satu materi); bila tidak ada, ikut soal sesudahnya.
+  const ordered = questions.map((q) => q.id);
+  for (let i = 0; i < ordered.length; i++) {
+    if (assigned.has(ordered[i])) continue;
+    let label: string | undefined;
+    for (let j = i - 1; j >= 0 && !label; j--) label = assigned.get(ordered[j]);
+    for (let j = i + 1; j < ordered.length && !label; j++) label = assigned.get(ordered[j]);
+    if (label) assigned.set(ordered[i], label);
+  }
+
+  // Hapus indikator lama dulu, supaya hasil percobaan sebelumnya tidak ikut terhitung
+  const { error: clearError } = await svc
+    .from("questions")
+    .update({ indicator: null })
+    .eq("exam_id", examId);
+  if (clearError) throw new Error(clearError.message);
+
   // Simpan per indikator (satu update untuk banyak soal)
   const byLabel = new Map<string, string[]>();
   assigned.forEach((label, id) => byLabel.set(label, [...(byLabel.get(label) ?? []), id]));
