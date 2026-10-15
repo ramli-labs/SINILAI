@@ -42,6 +42,8 @@ type ReportItem = {
   indicator: string | null;
   category: Category;
   reasoning: string;
+  score: number;
+  max: number;
 };
 
 // Kelompokkan item per indikator, urutan sesuai kemunculan pertama
@@ -204,6 +206,8 @@ export default async function ParentReportPage({
           question_text: cleanQuestionText(q?.question_text ?? null),
           indicator: (q as any)?.indicator ?? null,
           category: categorize(finalScore, q?.max_marks ?? 1),
+          score: Number(finalScore) || 0,
+          max: Number(q?.max_marks) || 0,
           reasoning: (sc.teacher_reasoning?.trim() || sc.parent_feedback?.trim() || extractReasoning(sc.ai_reasoning)),
         };
       });
@@ -263,16 +267,34 @@ export default async function ParentReportPage({
 
             {subjects.map(([subjectName, items]) => {
               const baik = items.filter((i) => i.category === "baik");
-              const penguatan = items.filter((i) => i.category === "penguatan");
-              const kurang = items.filter((i) => i.category === "kurang");
               // Pakai indikator bila soal-soal mapel ini sudah punya indikator
               const useIndicators = items.some((i) => i.indicator);
-              // Indikator dikuasai = semua soal dalam indikator itu benar penuh
-              const masteredIndicators = useIndicators
-                ? groupByIndicator(items)
-                    .filter((g) => g.indicator && g.items.every((i) => i.category === "baik"))
-                    .map((g) => g.indicator as string)
-                : [];
+
+              // Tanpa indikator: kategori per soal (seperti sebelumnya).
+              // Dengan indikator: kategori per indikator dari persentase perolehan nilai:
+              //   100% → Mastered, >= 50% → Needs Reinforcement, < 50% → Needs More Understanding.
+              //   Yang ditampilkan di bawah indikator hanya soal yang belum benar penuh.
+              let penguatan = items.filter((i) => i.category === "penguatan");
+              let kurang = items.filter((i) => i.category === "kurang");
+              let masteredIndicators: string[] = [];
+              if (useIndicators) {
+                penguatan = [];
+                kurang = [];
+                for (const g of groupByIndicator(items)) {
+                  const got = g.items.reduce((n, i) => n + i.score, 0);
+                  const max = g.items.reduce((n, i) => n + i.max, 0);
+                  const ratio = max > 0 ? got / max : 0;
+                  const allCorrect = g.items.every((i) => i.category === "baik");
+                  const notYet = g.items.filter((i) => i.category !== "baik");
+                  if (allCorrect) {
+                    if (g.indicator) masteredIndicators.push(g.indicator);
+                  } else if (ratio >= 0.5) {
+                    penguatan.push(...notYet);
+                  } else {
+                    kurang.push(...notYet);
+                  }
+                }
+              }
               // Jumlah soal benar penuh per indikator (dari semua soal mapel ini)
               const indicatorCounts = new Map<string | null, { correct: number; total: number }>();
               for (const g of groupByIndicator(items)) {
