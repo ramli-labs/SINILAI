@@ -26,7 +26,8 @@ export async function rewriteReasoning(input: RewriteInput): Promise<string> {
 A teacher reviewed an AI-graded answer and changed the score. Rewrite the feedback so it matches the TEACHER'S score.
 
 Rules:
-- English, 1–2 short sentences, same plain tone as the original feedback.
+- English, 1–2 short sentences, plain and friendly — the readers are the student's PARENTS.
+- Write in third person about the student ("The student correctly…", "The student still needs to…"). Never address the student as "you"/"your".
 - Describe what the student understood and what still needs work. Do NOT mention scores, marks, mark codes (B1, C2, ...), the AI, or that the score was changed.
 - You cannot see the student's answer. Base the text only on the original feedback and the mark scheme. Do not invent specific details the student wrote.
 - If the teacher's score is higher than the AI score, the teacher accepted more of the answer: present the student more positively, and keep only the gaps that still fit the remaining missing points.

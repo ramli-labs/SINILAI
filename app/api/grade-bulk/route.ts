@@ -218,6 +218,7 @@ async function saveScores(
         ai_reasoning: `Awarded: ${s.marks_awarded.join(", ") || "-"} | Missed: ${
           s.marks_missed.join(", ") || "-"
         } | ${s.reasoning}`,
+        parent_feedback: s.parent_feedback?.trim() || null,
         confidence: normalizeConfidence(s.confidence),
         flagged_for_review: s.flagged_for_review,
       };

@@ -14,6 +14,7 @@ export default function ScoreRow({
   flagged,
   initialOverride,
   initialReasoning,
+  parentFeedback,
 }: {
   scoreId: string;
   questionNumber: string;
@@ -23,6 +24,7 @@ export default function ScoreRow({
   flagged: boolean;
   initialOverride: number | null;
   initialReasoning: string | null;
+  parentFeedback: string | null;
 }) {
   const [override, setOverride] = useState(
     initialOverride != null ? String(initialOverride) : ""
@@ -31,12 +33,17 @@ export default function ScoreRow({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [generated, setGenerated] = useState(false);
+  const [parentText, setParentText] = useState(parentFeedback ?? "");
+  const [editingParent, setEditingParent] = useState(false);
 
   const hasOverride = override.trim() !== "";
   const overNum = parseFloat(override);
   const overInvalid =
     hasOverride &&
     (Number.isNaN(overNum) || overNum < 0 || (maxMarks != null && overNum > maxMarks));
+  // Override yang sama dengan skor AI tidak dianggap mengubah nilai
+  const sameAsAi = hasOverride && !overInvalid && overNum === Number(aiScore);
+  const changed = hasOverride && !overInvalid && !sameAsAi;
 
   async function generate() {
     setLoading(true);
@@ -82,10 +89,36 @@ export default function ScoreRow({
         <td
           className={
             "max-w-xs py-1.5 align-top text-xs " +
-            (hasOverride ? "text-gray-400 line-through decoration-gray-300" : "text-gray-500")
+            (changed ? "text-gray-400 line-through decoration-gray-300" : "text-gray-500")
           }
         >
           {aiReasoning}
+          {!changed && (
+            <div className="mt-1 rounded bg-violet-50 px-2 py-1 text-[11px] text-violet-900">
+              <div className="flex items-start justify-between gap-2">
+                <span>
+                  <b>👪 Untuk laporan:</b>{" "}
+                  {parentText ? parentText : <i className="text-violet-500">belum ada versi ramah orang tua</i>}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditingParent((v) => !v)}
+                  className="shrink-0 text-violet-700 hover:underline"
+                >
+                  {editingParent ? "Tutup" : "✎ Edit"}
+                </button>
+              </div>
+              {editingParent && (
+                <textarea
+                  name={`parent-${scoreId}`}
+                  value={parentText}
+                  onChange={(e) => setParentText(e.target.value)}
+                  rows={2}
+                  className="mt-1 w-full rounded border border-violet-300 bg-white px-2 py-1 text-xs text-gray-700"
+                />
+              )}
+            </div>
+          )}
         </td>
         <td className="py-1.5 align-top">
           <input
@@ -102,6 +135,9 @@ export default function ScoreRow({
               (overInvalid ? "border-red-500 bg-red-50" : "border-gray-300")
             }
           />
+          {sameAsAi && (
+            <p className="mt-0.5 text-[11px] text-gray-500">= skor AI</p>
+          )}
           {overInvalid && (
             <p className="mt-0.5 text-[11px] text-red-600">
               Maks {maxMarks ?? "?"}
@@ -110,7 +146,7 @@ export default function ScoreRow({
         </td>
       </tr>
 
-      {hasOverride && !overInvalid && (
+      {changed && (
         <tr className={flagged ? "bg-amber-50" : ""}>
           <td />
           <td colSpan={3} className="pb-2">

@@ -17,6 +17,7 @@ export interface QuestionScoreResult {
   marks_awarded: string[];
   marks_missed: string[];
   reasoning: string;
+  parent_feedback?: string;
   confidence: "high" | "medium" | "low";
   flagged_for_review: boolean;
   flag_reason?: string;
@@ -104,7 +105,8 @@ ${subjectRules(kind)}
 5. If you can read a student name/identifier on ANY of the pages (often the first page), report it in student_name_read so the teacher can verify the match — but do not use it to influence scoring.
 6. If a question's answer genuinely cannot be found on any provided page, score it 0, set confidence to "low", and note in flag_reason that no answer was found.
 7. Keep the "reasoning" field for each question SHORT — one or two concise sentences maximum. Do not write long explanations; the teacher can always look at the photo for detail. Verbose reasoning risks running out of response space before you finish.
-8. Respond ONLY with JSON matching the schema. When quoting a student's answer inside "reasoning", use single quotes, never double quotes.`;
+8. For each question also write "parent_feedback": 1–2 short, plain-English sentences for the student's PARENTS, in third person ("The student correctly…", "The student still needs to…"). Say what the student did well and what to practise. Be constructive and friendly; do NOT use mark codes (B1, C2…), scores, or examiner jargon such as "no credit" or "too garbled to credit".
+9. Respond ONLY with JSON matching the schema. When quoting a student's answer inside "reasoning", use single quotes, never double quotes.`;
 }
 
 function buildUserPrompt(
@@ -145,6 +147,7 @@ Return JSON in exactly this shape:
       "marks_awarded": string[],
       "marks_missed": string[],
       "reasoning": string,
+      "parent_feedback": string,
       "confidence": "high" | "medium" | "low",
       "flagged_for_review": boolean,
       "flag_reason": string | null
@@ -175,6 +178,7 @@ const GRADING_SCHEMA = {
           marks_awarded: { type: "array", items: { type: "string" } },
           marks_missed: { type: "array", items: { type: "string" } },
           reasoning: { type: "string" },
+          parent_feedback: { type: "string" },
           confidence: { type: "string", enum: ["high", "medium", "low"] },
           flagged_for_review: { type: "boolean" },
           flag_reason: { type: ["string", "null"] },
@@ -187,6 +191,7 @@ const GRADING_SCHEMA = {
           "marks_awarded",
           "marks_missed",
           "reasoning",
+          "parent_feedback",
           "confidence",
           "flagged_for_review",
           "flag_reason",
