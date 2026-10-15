@@ -70,7 +70,7 @@ export default async function ParentReportPage({
     svc
       .from("question_scores")
       .select(
-        "id, submission_id, question_id, ai_score, ai_reasoning, teacher_override_score, teacher_reasoning"
+        "id, submission_id, question_id, ai_score, ai_reasoning, teacher_override_score, teacher_reasoning, parent_feedback"
       )
       .in("submission_id", submissionIds.length > 0 ? submissionIds : [""])
   );
@@ -111,7 +111,7 @@ export default async function ParentReportPage({
           question_number: q?.question_number ?? "?",
           question_text: q?.question_text ?? null,
           category: categorize(finalScore, q?.max_marks ?? 1),
-          reasoning: (sc.teacher_reasoning?.trim() || extractReasoning(sc.ai_reasoning)),
+          reasoning: (sc.teacher_reasoning?.trim() || sc.parent_feedback?.trim() || extractReasoning(sc.ai_reasoning)),
         };
       });
 

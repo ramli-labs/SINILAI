@@ -8,6 +8,8 @@ import SubmitButton from "@/components/SubmitButton";
 import Toast from "@/components/Toast";
 import LiveTotal from "@/components/LiveTotal";
 import RewriteAllButton from "@/components/RewriteAllButton";
+import ParentFeedbackButton from "@/components/ParentFeedbackButton";
+import { usesSecondPerson } from "@/lib/parentFeedback";
 
 function serviceClient() {
   return createServiceClient(
@@ -61,7 +63,11 @@ async function approveSubmissionAction(formData: FormData) {
 
     totalFinal += finalScore;
 
-    const hasOverride = overrideRaw !== "" && overrideRaw != null;
+    // Override yang sama dengan skor AI dianggap tidak mengubah nilai
+    const hasOverride =
+      overrideRaw !== "" &&
+      overrideRaw != null &&
+      finalScore !== parseFloat(aiScoreRaw);
     const hadOverride = formData.get(`hadOverride-${scoreId}`) === "1";
 
     if (hasOverride) {
@@ -71,7 +77,18 @@ async function approveSubmissionAction(formData: FormData) {
         update.teacher_reasoning = String(reasoningRaw).trim() || null;
       }
       await svc.from("question_scores").update(update).eq("id", scoreId);
-    } else if (hadOverride) {
+    }
+
+    // Deskripsi ramah orang tua yang diedit manual (soal tanpa perubahan nilai)
+    const parentRaw = formData.get(`parent-${scoreId}`);
+    if (!hasOverride && parentRaw != null) {
+      await svc
+        .from("question_scores")
+        .update({ parent_feedback: String(parentRaw).trim() || null })
+        .eq("id", scoreId);
+    }
+
+    if (!hasOverride && hadOverride) {
       // Override dikosongkan guru: kembali ke nilai & deskripsi AI
       await svc
         .from("question_scores")
@@ -125,7 +142,7 @@ export default async function ReviewPage({
     svc
       .from("question_scores")
       .select(
-        "id, submission_id, question_id, ai_score, ai_reasoning, confidence, flagged_for_review, teacher_override_score, teacher_reasoning"
+        "id, submission_id, question_id, ai_score, ai_reasoning, confidence, flagged_for_review, teacher_override_score, teacher_reasoning, parent_feedback"
       )
       .in("submission_id", submissionIds.length > 0 ? submissionIds : [""])
   );
@@ -214,7 +231,10 @@ export default async function ReviewPage({
           Maks: max,
           Kategori: categoryLabel(finalScore, max || 1),
           "Diubah Guru": sc.teacher_override_score != null ? "Ya" : "",
-          Deskripsi: sc.teacher_reasoning?.trim() || extractReasoning(sc.ai_reasoning),
+          Deskripsi:
+            sc.teacher_reasoning?.trim() ||
+            sc.parent_feedback?.trim() ||
+            extractReasoning(sc.ai_reasoning),
         };
       })
   );
@@ -261,6 +281,18 @@ export default async function ReviewPage({
               Number(sc.teacher_override_score) !== Number(sc.ai_score) &&
               !sc.teacher_reasoning
           )
+          .map((sc: any) => sc.id)}
+      />
+
+      <ParentFeedbackButton
+        scoreIds={(allScores ?? [])
+          .filter((sc: any) => {
+            const changed =
+              sc.teacher_override_score != null &&
+              Number(sc.teacher_override_score) !== Number(sc.ai_score);
+            if (changed) return !!sc.teacher_reasoning && usesSecondPerson(sc.teacher_reasoning);
+            return !sc.parent_feedback || usesSecondPerson(sc.parent_feedback);
+          })
           .map((sc: any) => sc.id)}
       />
 
@@ -344,6 +376,7 @@ export default async function ReviewPage({
                             flagged={!!sc.flagged_for_review}
                             initialOverride={sc.teacher_override_score}
                             initialReasoning={sc.teacher_reasoning}
+                            parentFeedback={sc.parent_feedback}
                           />
                         );
                       })}

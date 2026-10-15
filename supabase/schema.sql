@@ -127,6 +127,7 @@ create table question_scores (
   flagged_for_review boolean not null default false,
   teacher_override_score numeric,    -- diisi jika guru mengoreksi
   teacher_reasoning text,            -- deskripsi versi guru (dipakai di laporan bila terisi)
+  parent_feedback text,              -- deskripsi ramah orang tua dari AI ("The student ...")
   created_at timestamptz not null default now(),
   unique (submission_id, question_id)
 );
