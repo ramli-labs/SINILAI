@@ -73,7 +73,15 @@ function ItemLine({ i }: { i: ReportItem }) {
 }
 
 // Daftar soal yang perlu perhatian. Bila ada indikator, dikelompokkan per indikator.
-function NeedsList({ items, useIndicators }: { items: ReportItem[]; useIndicators: boolean }) {
+function NeedsList({
+  items,
+  useIndicators,
+  counts,
+}: {
+  items: ReportItem[];
+  useIndicators: boolean;
+  counts: Map<string | null, { correct: number; total: number }>;
+}) {
   if (!useIndicators) {
     return (
       <ul className="ml-5 list-disc text-sm text-gray-700">
@@ -90,6 +98,12 @@ function NeedsList({ items, useIndicators }: { items: ReportItem[]; useIndicator
       {groupByIndicator(items).map((g, gi) => (
         <li key={gi} className="break-inside-avoid">
           <span className="font-medium text-gray-800">{g.indicator ?? "Other skills"}</span>
+          {counts.get(g.indicator) && (
+            <span className="text-gray-500">
+              {" "}
+              ({counts.get(g.indicator)!.correct} of {counts.get(g.indicator)!.total} correct)
+            </span>
+          )}
           <ul className="ml-5 list-[circle]">
             {g.items.map((i, idx) => (
               <li key={idx}>
@@ -259,6 +273,14 @@ export default async function ParentReportPage({
                     .filter((g) => g.indicator && g.items.every((i) => i.category === "baik"))
                     .map((g) => g.indicator as string)
                 : [];
+              // Jumlah soal benar penuh per indikator (dari semua soal mapel ini)
+              const indicatorCounts = new Map<string | null, { correct: number; total: number }>();
+              for (const g of groupByIndicator(items)) {
+                indicatorCounts.set(g.indicator, {
+                  correct: g.items.filter((i) => i.category === "baik").length,
+                  total: g.items.length,
+                });
+              }
 
               return (
                 <div key={subjectName} className="mb-5 break-inside-avoid">
@@ -267,16 +289,22 @@ export default async function ParentReportPage({
                   </h3>
 
                   {useIndicators ? (
-                    masteredIndicators.length > 0 && (
-                      <div className="mb-2">
-                        <p className="text-sm font-medium text-green-700">✅ Mastered:</p>
+                    <div className="mb-2">
+                      <p className="text-sm text-green-700">
+                        <span className="font-medium">✅ Mastered</span>{" "}
+                        <span className="text-gray-600">
+                          ({baik.length} of {items.length} questions answered fully correctly)
+                        </span>
+                        {masteredIndicators.length > 0 ? ":" : ""}
+                      </p>
+                      {masteredIndicators.length > 0 && (
                         <ul className="ml-5 list-disc text-sm text-gray-700">
                           {masteredIndicators.map((t) => (
                             <li key={t} className="break-inside-avoid">{t}</li>
                           ))}
                         </ul>
-                      </div>
-                    )
+                      )}
+                    </div>
                   ) : (
                     baik.length > 0 && (
                       <p className="mb-2 text-sm text-green-700">
@@ -291,14 +319,14 @@ export default async function ParentReportPage({
                   {penguatan.length > 0 && (
                     <div className="mb-2">
                       <p className="text-sm font-medium text-amber-700">⚠️ Needs Reinforcement:</p>
-                      <NeedsList items={penguatan} useIndicators={useIndicators} />
+                      <NeedsList items={penguatan} useIndicators={useIndicators} counts={indicatorCounts} />
                     </div>
                   )}
 
                   {kurang.length > 0 && (
                     <div className="mb-2">
                       <p className="text-sm font-medium text-red-700">❌ Needs More Understanding:</p>
-                      <NeedsList items={kurang} useIndicators={useIndicators} />
+                      <NeedsList items={kurang} useIndicators={useIndicators} counts={indicatorCounts} />
                     </div>
                   )}
                 </div>
