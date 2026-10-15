@@ -132,21 +132,33 @@ function NeedsList({
   return (
     <ul className="ml-5 list-disc space-y-1 text-sm text-gray-700">
       {groupByIndicator(items).map((g, gi) => (
-        <li key={gi} className="break-inside-avoid">
-          <span className="font-medium text-gray-800">{g.indicator ?? "Other skills"}</span>
-          {counts.get(g.indicator) && (
-            <span className="text-gray-500">
-              {" "}
-              ({counts.get(g.indicator)!.correct} of {counts.get(g.indicator)!.total} correct)
-            </span>
+        <li key={gi}>
+          {/* Judul indikator menempel dengan soal pertamanya; sisa soal boleh lanjut ke halaman berikutnya */}
+          <div className="break-inside-avoid">
+            <span className="font-medium text-gray-800">{g.indicator ?? "Other skills"}</span>
+            {counts.get(g.indicator) && (
+              <span className="text-gray-500">
+                {" "}
+                ({counts.get(g.indicator)!.correct} of {counts.get(g.indicator)!.total} correct)
+              </span>
+            )}
+            {g.items[0] && (
+              <ul className="ml-5 list-[circle]">
+                <li>
+                  <ItemLine i={g.items[0]} />
+                </li>
+              </ul>
+            )}
+          </div>
+          {g.items.length > 1 && (
+            <ul className="ml-5 list-[circle]">
+              {g.items.slice(1).map((i, idx) => (
+                <li key={idx} className="break-inside-avoid">
+                  <ItemLine i={i} />
+                </li>
+              ))}
+            </ul>
           )}
-          <ul className="ml-5 list-[circle]">
-            {g.items.map((i, idx) => (
-              <li key={idx}>
-                <ItemLine i={i} />
-              </li>
-            ))}
-          </ul>
         </li>
       ))}
     </ul>
@@ -354,7 +366,7 @@ export default async function ParentReportPage({
               }
 
               return (
-                <div key={subjectName} className="mb-5 break-inside-avoid">
+                <div key={subjectName} className="mb-5">
                   {/* Judul mapel + bagian pertama dibuat satu kesatuan supaya judul
                       tidak tertinggal sendirian di bawah halaman */}
                   <div className="break-inside-avoid" data-keep-with-next>
