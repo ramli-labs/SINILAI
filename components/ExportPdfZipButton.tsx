@@ -146,7 +146,7 @@ export default function ExportPdfZipButton({
         const keep = Array.from(el.querySelectorAll("[data-keep-with-next]")).map((node) => {
           const r = (node as HTMLElement).getBoundingClientRect();
           // Batasi tinggi rentang agar blok sangat panjang tetap bisa dipotong
-          const height = Math.min(r.height, 260);
+          const height = Math.min(r.height, 120);
           return {
             start: Math.max(0, (r.top - elRect.top - 6) * scaleY),
             end: (r.top - elRect.top + height) * scaleY,

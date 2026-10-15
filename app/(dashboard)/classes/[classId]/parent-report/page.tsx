@@ -367,42 +367,44 @@ export default async function ParentReportPage({
 
               return (
                 <div key={subjectName} className="mb-5">
-                  {/* Judul mapel + bagian pertama dibuat satu kesatuan supaya judul
-                      tidak tertinggal sendirian di bawah halaman */}
+                  {/* Judul mapel + 1–2 baris pertama isinya dibuat satu kesatuan, supaya judul
+                      tidak tertinggal sendirian di bawah halaman. Sisanya boleh mengalir. */}
                   <div className="break-inside-avoid" data-keep-with-next>
-                  <h3 className="mb-2 break-after-avoid border-b border-gray-200 pb-1 text-sm font-semibold text-gray-800">
-                    {subjectName}
-                  </h3>
-
-                  {useIndicators ? (
-                    <div className="mb-2">
-                      <p className="text-sm text-green-700">
-                        <span className="font-medium">✅ Mastered</span>{" "}
-                        <span className="text-gray-600">
-                          ({baik.length} of {items.length} questions answered fully correctly)
-                        </span>
-                        {masteredIndicators.length > 0 ? ":" : ""}
-                      </p>
-                      {masteredIndicators.length > 0 && (
-                        <ul className="ml-5 list-disc text-sm text-gray-700">
-                          {masteredIndicators.map((t) => (
-                            <li key={t} className="break-inside-avoid">{t}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ) : (
-                    baik.length > 0 && (
+                    <h3 className="mb-2 break-after-avoid border-b border-gray-200 pb-1 text-sm font-semibold text-gray-800">
+                      {subjectName}
+                    </h3>
+                    {useIndicators ? (
+                      <>
+                        <p className="text-sm text-green-700">
+                          <span className="font-medium">✅ Mastered</span>{" "}
+                          <span className="text-gray-600">
+                            ({baik.length} of {items.length} questions answered fully correctly)
+                          </span>
+                          {masteredIndicators.length > 0 ? ":" : ""}
+                        </p>
+                        {masteredIndicators.length > 0 && (
+                          <ul className="ml-5 list-disc text-sm text-gray-700">
+                            <li>{masteredIndicators[0]}</li>
+                          </ul>
+                        )}
+                      </>
+                    ) : (
                       <p className="mb-2 text-sm text-green-700">
                         <span className="font-medium">✅ Mastered:</span>{" "}
                         <span className="text-gray-700">
                           {baik.length} of {items.length} questions answered fully correctly.
                         </span>
                       </p>
-                    )
-                  )}
-
+                    )}
                   </div>
+                  {useIndicators && masteredIndicators.length > 1 && (
+                    <ul className="ml-5 list-disc text-sm text-gray-700">
+                      {masteredIndicators.slice(1).map((t) => (
+                        <li key={t} className="break-inside-avoid">{t}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {useIndicators && <div className="mb-2" />}
 
                   {penguatan.length > 0 && (
                     <div className="mb-2">
@@ -422,22 +424,41 @@ export default async function ParentReportPage({
             })}
 
             {indicatorMap.length > 0 && (
-              <div className="mt-6 break-inside-avoid border-t border-gray-200 pt-3 text-[11px] leading-snug text-gray-600" data-keep-with-next>
-                <p className="mb-1 font-semibold text-gray-700">
-                  Indicator Map — which questions assess each indicator
-                </p>
-                {indicatorMap.map((m) => (
-                  <div key={m.subject} className="mb-1.5 break-inside-avoid">
-                    <p className="font-medium text-gray-700">{m.subject}</p>
-                    <ul className="ml-4 list-disc">
-                      {m.entries.map((e, idx) => (
-                        <li key={idx}>
-                          {e.indicator} <span className="text-gray-500">— Questions {e.questions}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+              <div className="mt-6 border-t border-gray-200 pt-3 text-[11px] leading-snug text-gray-600">
+                {indicatorMap.map((m, mi) => {
+                  const entryLine = (e: IndicatorMapEntry) => (
+                    <>
+                      {e.indicator} <span className="text-gray-500">— Questions {e.questions}</span>
+                    </>
+                  );
+                  return (
+                    <div key={m.subject} className="mb-1.5">
+                      {/* Judul (peta + nama mapel) menempel dengan baris pertamanya; sisanya boleh mengalir */}
+                      <div className="break-inside-avoid" data-keep-with-next>
+                        {mi === 0 && (
+                          <p className="mb-1 font-semibold text-gray-700">
+                            Indicator Map — which questions assess each indicator
+                          </p>
+                        )}
+                        <p className="font-medium text-gray-700">{m.subject}</p>
+                        {m.entries[0] && (
+                          <ul className="ml-4 list-disc">
+                            <li>{entryLine(m.entries[0])}</li>
+                          </ul>
+                        )}
+                      </div>
+                      {m.entries.length > 1 && (
+                        <ul className="ml-4 list-disc">
+                          {m.entries.slice(1).map((e, idx) => (
+                            <li key={idx} className="break-inside-avoid">
+                              {entryLine(e)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
