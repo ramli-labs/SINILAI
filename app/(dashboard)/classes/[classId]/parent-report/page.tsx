@@ -291,7 +291,8 @@ export default async function ParentReportPage({
           <div
             key={student.id}
             id={`report-card-${student.id}`}
-            className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm print:break-after-page print:border-0 print:shadow-none"
+            lang="en"
+            className="report-justify rounded-lg border border-gray-200 bg-white p-6 shadow-sm print:break-after-page print:border-0 print:shadow-none"
           >
             <div className="mb-4 border-b border-gray-200 pb-3 text-center">
               <img
