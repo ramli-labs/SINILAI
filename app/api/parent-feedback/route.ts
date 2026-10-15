@@ -68,7 +68,9 @@ export async function POST(req: NextRequest) {
 
     let updated = 0;
     for (const j of jobs) {
-      const text = result.get(j.id);
+      // Bila AI melewatkan deskripsi ini, simpan teks sumbernya apa adanya supaya
+      // tidak terus-menerus terhitung "belum" (bisa diedit manual di halaman Review).
+      const text = result.get(j.id) || (j.target === "parent_feedback" ? j.text : null);
       if (!text) continue;
       const { error } = await svc.from("question_scores").update({ [j.target]: text }).eq("id", j.id);
       if (!error) updated++;
