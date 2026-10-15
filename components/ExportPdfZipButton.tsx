@@ -5,6 +5,7 @@ import { useState } from "react";
 interface ReportEntry {
   elementId: string;
   fileName: string;
+  footer?: string; // teks kiri footer, mis. "Nama Siswa · 7A"
 }
 
 // Tempel gambar laporan ke PDF A4 dengan margin 10 mm.
@@ -12,12 +13,17 @@ interface ReportEntry {
 // - Bila lebih panjang, dipotong per halaman di baris yang kosong (putih),
 //   supaya teks tidak terbelah di tengah.
 const MARGIN_MM = 10;
+const FOOTER_MM = 8; // ruang tambahan di bawah untuk footer
+// Gambar disimpan sebagai PNG TERKOMPRES ("FAST"). Sebelumnya tanpa kompresi,
+// sehingga 1 halaman ± 10 MB. Untuk halaman berisi teks, PNG terkompres lebih
+// kecil dan lebih tajam daripada JPEG (± 0,2–0,3 MB/halaman).
+const toPng = (c: HTMLCanvasElement) => c.toDataURL("image/png");
 
 function addCanvasToPdf(pdf: any, canvas: HTMLCanvasElement) {
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const usableW = pageW - MARGIN_MM * 2;
-  const usableH = pageH - MARGIN_MM * 2;
+  const usableH = pageH - MARGIN_MM * 2 - FOOTER_MM;
 
   const fullHmm = (canvas.height * usableW) / canvas.width;
 
@@ -25,7 +31,7 @@ function addCanvasToPdf(pdf: any, canvas: HTMLCanvasElement) {
     const scale = Math.min(1, usableH / fullHmm);
     const w = usableW * scale;
     const h = fullHmm * scale;
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", (pageW - w) / 2, MARGIN_MM, w, h);
+    pdf.addImage(toPng(canvas), "PNG", (pageW - w) / 2, MARGIN_MM, w, h, undefined, "FAST");
     return;
   }
 
@@ -47,9 +53,26 @@ function addCanvasToPdf(pdf: any, canvas: HTMLCanvasElement) {
     slice.getContext("2d")!.drawImage(canvas, 0, top, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
 
     if (!first) pdf.addPage();
-    pdf.addImage(slice.toDataURL("image/png"), "PNG", MARGIN_MM, MARGIN_MM, usableW, sliceH / pxPerMm);
+    pdf.addImage(toPng(slice), "PNG", MARGIN_MM, MARGIN_MM, usableW, sliceH / pxPerMm, undefined, "FAST");
     first = false;
     top = cut;
+  }
+}
+
+// Footer tiap halaman: teks kiri (nama siswa · kelas) dan "Page x of y" di kanan
+function addFooters(pdf: any, leftText?: string) {
+  const total = pdf.getNumberOfPages();
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const y = pageH - MARGIN_MM + 2;
+  for (let i = 1; i <= total; i++) {
+    pdf.setPage(i);
+    pdf.setDrawColor(220);
+    pdf.line(MARGIN_MM, y - 5, pageW - MARGIN_MM, y - 5);
+    pdf.setFontSize(8);
+    pdf.setTextColor(120);
+    if (leftText) pdf.text(leftText, MARGIN_MM, y);
+    pdf.text(`Page ${i} of ${total}`, pageW - MARGIN_MM, y, { align: "right" });
   }
 }
 
@@ -106,8 +129,9 @@ export default function ExportPdfZipButton({
         if (!el) continue;
 
         const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff" });
-        const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+        const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
         addCanvasToPdf(pdf, canvas);
+        addFooters(pdf, entry.footer);
 
         const pdfBlob = pdf.output("blob");
         zip.file(`${entry.fileName}.pdf`, pdfBlob);
