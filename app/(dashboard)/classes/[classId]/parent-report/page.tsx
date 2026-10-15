@@ -36,6 +36,40 @@ function extractReasoning(raw: string | null): string {
   return parts.length >= 3 ? parts.slice(2).join("|").trim() : raw;
 }
 
+// Peta indikator per ujian: indikator → daftar nomor soal (diringkas jadi rentang
+// bila berurutan, mis. "1(a)–3(b)").
+type IndicatorMapEntry = { indicator: string; questions: string };
+
+function formatRuns(nums: string[], idxs: number[]): string {
+  const runs: string[] = [];
+  let start = 0;
+  for (let i = 1; i <= idxs.length; i++) {
+    if (i === idxs.length || idxs[i] !== idxs[i - 1] + 1) {
+      const len = i - start;
+      if (len === 1) runs.push(nums[start]);
+      else if (len === 2) runs.push(`${nums[start]}, ${nums[i - 1]}`);
+      else runs.push(`${nums[start]}–${nums[i - 1]}`);
+      start = i;
+    }
+  }
+  return runs.join(", ");
+}
+
+function buildIndicatorMap(questions: { question_number: string; indicator: string | null }[]): IndicatorMapEntry[] {
+  const groups: { indicator: string; nums: string[]; idxs: number[] }[] = [];
+  questions.forEach((q, i) => {
+    if (!q.indicator) return;
+    let g = groups.find((x) => x.indicator === q.indicator);
+    if (!g) {
+      g = { indicator: q.indicator, nums: [], idxs: [] };
+      groups.push(g);
+    }
+    g.nums.push(q.question_number);
+    g.idxs.push(i);
+  });
+  return groups.map((g) => ({ indicator: g.indicator, questions: formatRuns(g.nums, g.idxs) }));
+}
+
 type ReportItem = {
   question_number: string;
   question_text: string | null;
@@ -184,8 +218,15 @@ export default async function ParentReportPage({
       (questionOrder.get(b.question_id) ?? 9999)
   );
 
+  const indicatorMapByExam = new Map<string, IndicatorMapEntry[]>();
+  for (const exam of exams ?? []) {
+    const qs = (allQuestions ?? []).filter((q: any) => q.exam_id === exam.id) as any[];
+    indicatorMapByExam.set(exam.id, buildIndicatorMap(qs));
+  }
+
   const report = (students ?? []).map((student) => {
     const subjectMap = new Map<string, ReportItem[]>();
+    const indicatorMap: { subject: string; entries: IndicatorMapEntry[] }[] = [];
 
     for (const exam of exams ?? []) {
       const subjectName = (exam as any).subjects?.name ?? "Other";
@@ -214,10 +255,16 @@ export default async function ParentReportPage({
 
       if (items.length > 0) {
         subjectMap.set(subjectName, [...(subjectMap.get(subjectName) ?? []), ...items]);
+        const entries = indicatorMapByExam.get(exam.id) ?? [];
+        if (entries.length > 0) {
+          const existing = indicatorMap.find((m) => m.subject === subjectName);
+          if (existing) existing.entries.push(...entries);
+          else indicatorMap.push({ subject: subjectName, entries: [...entries] });
+        }
       }
     }
 
-    return { student, subjects: Array.from(subjectMap.entries()) };
+    return { student, subjects: Array.from(subjectMap.entries()), indicatorMap };
   });
 
   return (
@@ -240,7 +287,7 @@ export default async function ParentReportPage({
       </div>
 
       <div className="space-y-8">
-        {report.map(({ student, subjects }) => (
+        {report.map(({ student, subjects, indicatorMap }) => (
           <div
             key={student.id}
             id={`report-card-${student.id}`}
@@ -355,6 +402,26 @@ export default async function ParentReportPage({
                 </div>
               );
             })}
+
+            {indicatorMap.length > 0 && (
+              <div className="mt-6 break-inside-avoid border-t border-gray-200 pt-3 text-[11px] leading-snug text-gray-600">
+                <p className="mb-1 font-semibold text-gray-700">
+                  Indicator Map — which questions assess each indicator
+                </p>
+                {indicatorMap.map((m) => (
+                  <div key={m.subject} className="mb-1.5 break-inside-avoid">
+                    <p className="font-medium text-gray-700">{m.subject}</p>
+                    <ul className="ml-4 list-disc">
+                      {m.entries.map((e, idx) => (
+                        <li key={idx}>
+                          {e.indicator} <span className="text-gray-500">— Questions {e.questions}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
