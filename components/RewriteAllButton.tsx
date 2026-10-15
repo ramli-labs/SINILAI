@@ -16,7 +16,9 @@ const MAX_TRIES = 4;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function rewriteOne(id: string): Promise<boolean> {
+// Mengembalikan null bila berhasil, atau pesan error bila gagal
+async function rewriteOne(id: string): Promise<string | null> {
+  let lastError = "Gagal";
   for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
     try {
       const res = await fetch("/api/rewrite-reasoning", {
@@ -24,15 +26,17 @@ async function rewriteOne(id: string): Promise<boolean> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ score_id: id }),
       });
-      if (res.ok) return true;
+      if (res.ok) return null;
+      const data = await res.json().catch(() => ({}));
+      lastError = data.error ?? `HTTP ${res.status}`;
       // Hanya ulangi untuk batas kecepatan / gangguan server
-      if (res.status !== 429 && res.status < 500) return false;
-    } catch {
-      // koneksi putus sesaat — coba lagi
+      if (res.status !== 429 && res.status < 500) return lastError;
+    } catch (e: any) {
+      lastError = e?.message ?? "Koneksi terputus";
     }
     if (attempt < MAX_TRIES) await sleep(2000 * attempt + Math.random() * 1000);
   }
-  return false;
+  return lastError;
 }
 
 export default function RewriteAllButton({ scoreIds }: { scoreIds: string[] }) {
@@ -41,6 +45,7 @@ export default function RewriteAllButton({ scoreIds }: { scoreIds: string[] }) {
   const [done, setDone] = useState(0);
   const [total, setTotal] = useState(0);
   const [result, setResult] = useState<{ ok: number; failed: number } | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
 
   // Peringatan bila tab ditutup saat proses berjalan; buka kunci bila komponen hilang
   useEffect(() => {
@@ -70,16 +75,22 @@ export default function RewriteAllButton({ scoreIds }: { scoreIds: string[] }) {
     setBulkLock(true);
     setDone(0);
     setResult(null);
+    setErrors([]);
 
     let ok = 0;
     let failed = 0;
     let next = 0;
+    const errorMsgs: string[] = [];
 
     async function worker() {
       while (next < ids.length) {
         const id = ids[next++];
-        if (await rewriteOne(id)) ok++;
-        else failed++;
+        const err = await rewriteOne(id);
+        if (err == null) ok++;
+        else {
+          failed++;
+          errorMsgs.push(err);
+        }
         setDone((n) => n + 1);
       }
     }
@@ -89,6 +100,8 @@ export default function RewriteAllButton({ scoreIds }: { scoreIds: string[] }) {
     setRunning(false);
     setBulkLock(false);
     setResult({ ok, failed });
+    // Ringkas: pesan error unik, maksimal 3
+    setErrors(Array.from(new Set(errorMsgs)).slice(0, 3));
     if (ok > 0) router.refresh();
   }
 
@@ -146,6 +159,16 @@ export default function RewriteAllButton({ scoreIds }: { scoreIds: string[] }) {
             </span>
           )}
         </div>
+        {!running && errors.length > 0 && (
+          <div className="mt-2 rounded border border-red-200 bg-white p-2 text-xs text-red-700">
+            <p className="mb-1 font-medium">Alasan gagal:</p>
+            <ul className="ml-4 list-disc space-y-0.5">
+              {errors.map((e, i) => (
+                <li key={i} className="break-words">{e}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {running && (
           <div className="mt-2 h-2 w-full overflow-hidden rounded bg-blue-100">
             <div
