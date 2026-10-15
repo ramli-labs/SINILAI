@@ -22,3 +22,20 @@
     print-color-adjust: exact;
   }
 }
+
+/* Laporan Orang Tua: teks rata kiri-kanan (justify) agar rapi.
+   Tanpa pemenggalan kata otomatis — tanda "-" hasil pemenggalan tidak ikut
+   tergambar di PDF hasil tombol ZIP (html2canvas). */
+.report-justify p,
+.report-justify li {
+  text-align: justify;
+}
+.report-justify h2,
+.report-justify h3,
+.report-justify .text-center,
+.report-justify .text-center p {
+  text-align: center;
+}
+.report-justify h3 {
+  text-align: left;
+}
