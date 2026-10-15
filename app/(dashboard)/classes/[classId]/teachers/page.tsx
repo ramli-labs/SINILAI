@@ -2,6 +2,23 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import SubmitButton from "@/components/SubmitButton";
+import { getCurrentTeacher, isAdminRole, canManage, type Role } from "@/lib/roles";
+
+// Hanya admin atau pemilik kelas yang boleh mengatur guru di kelas ini
+async function requireClassManager(userId: string, classId: string) {
+  const me = await getCurrentTeacher(userId);
+  if (!me || !me.is_active) redirect("/login");
+  if (isAdminRole(me.role)) return me;
+  const { data: cls } = await serviceClient()
+    .from("classes")
+    .select("owner_teacher_id")
+    .eq("id", classId)
+    .maybeSingle();
+  if (!cls || cls.owner_teacher_id !== userId) {
+    throw new Error("Hanya admin atau pemilik kelas yang boleh mengatur guru di kelas ini.");
+  }
+  return me;
+}
 
 function serviceClient() {
   return createServiceClient(
@@ -20,6 +37,7 @@ async function addTeacherAction(formData: FormData) {
   if (!user) redirect("/login");
 
   const classId = formData.get("classId") as string;
+  const me = await requireClassManager(user!.id, classId);
   const subjectId = formData.get("subjectId") as string;
   const fullName = formData.get("fullName") as string;
   const email = formData.get("email") as string;
@@ -79,6 +97,7 @@ async function removeAccessAction(formData: FormData) {
   if (!user) redirect("/login");
 
   const classId = formData.get("classId") as string;
+  const me = await requireClassManager(user!.id, classId);
   const teacherId = formData.get("teacherId") as string;
   const subjectId = formData.get("subjectId") as string;
 
@@ -103,10 +122,32 @@ async function resetPasswordAction(formData: FormData) {
   if (!user) redirect("/login");
 
   const classId = formData.get("classId") as string;
+  const me = await requireClassManager(user!.id, classId);
   const teacherId = formData.get("teacherId") as string;
   const newPassword = formData.get("newPassword") as string;
 
   const svc = serviceClient();
+  // Hanya boleh mereset password akun yang tingkatnya di bawah kita
+  // (pemilik kelas biasa hanya boleh mereset guru biasa di kelasnya)
+  const target = await getCurrentTeacher(teacherId);
+  const targetRole: Role = target?.role ?? "teacher";
+  const allowed = isAdminRole(me.role)
+    ? canManage(me.role, targetRole)
+    : targetRole === "teacher";
+  if (!allowed || teacherId === user!.id) {
+    throw new Error("Anda tidak berhak mereset password akun ini.");
+  }
+  if (!isAdminRole(me.role)) {
+    const { data: member } = await svc
+      .from("class_teachers")
+      .select("teacher_id")
+      .eq("class_id", classId)
+      .eq("teacher_id", teacherId)
+      .limit(1);
+    if (!member || member.length === 0) {
+      throw new Error("Guru ini tidak terdaftar di kelas Anda.");
+    }
+  }
   const { error } = await svc.auth.admin.updateUserById(teacherId, {
     password: newPassword,
   });

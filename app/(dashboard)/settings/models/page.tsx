@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import SubmitButton from "@/components/SubmitButton";
+import { getCurrentTeacher, isAdminRole } from "@/lib/roles";
 
 const MODEL_OPTIONS = [
   { value: "claude-haiku-5-5", label: "Haiku 5.5 (lebih murah, cocok untuk soal sederhana)" },
@@ -15,6 +16,8 @@ async function updateModelsAction(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  const me = await getCurrentTeacher(user.id);
+  if (!isAdminRole(me?.role)) redirect("/classes");
 
   const { data: subjects } = await supabase.from("subjects").select("id");
 
@@ -37,6 +40,12 @@ export default async function ModelSettingsPage({
 }) {
   const { saved } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user: viewer },
+  } = await supabase.auth.getUser();
+  if (!viewer) redirect("/login");
+  const viewerTeacher = await getCurrentTeacher(viewer.id);
+  if (!isAdminRole(viewerTeacher?.role)) redirect("/classes");
 
   const { data: subjects } = await supabase
     .from("subjects")

@@ -25,7 +25,11 @@ export default function LoginPage() {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      setError(
+        /banned/i.test(error.message)
+          ? "Akun Anda dinonaktifkan. Silakan hubungi admin sekolah."
+          : error.message
+      );
       return;
     }
 
@@ -76,10 +80,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-4 text-center text-sm text-gray-500">
-          Belum punya akun?{" "}
-          <a href="/register" className="text-blue-600 hover:underline">
-            Daftar
-          </a>
+          Belum punya akun? Hubungi admin sekolah.
         </p>
       </div>
     </div>

@@ -5,12 +5,19 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentTeacher } from "@/lib/roles";
 
 export async function getTeacher() {
   const supabase = await createClient();
   const {
-    data: { user },
+    data: { user: authUser },
   } = await supabase.auth.getUser();
+  let user = authUser;
+  // Akun yang dinonaktifkan admin dianggap tidak login
+  if (user) {
+    const t = await getCurrentTeacher(user.id);
+    if (t && !t.is_active) user = null;
+  }
   return { supabase, user };
 }
 
