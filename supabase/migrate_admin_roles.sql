@@ -9,7 +9,7 @@ alter table teachers add constraint teachers_role_check
 alter table teachers add column if not exists is_active boolean not null default true;
 
 -- 2) Super admin pertama
-update teachers set role = 'super_admin' where email = 'ramli.jainal@gmail.com';
+update teachers set role = 'super_admin' where email = 'ramli@labschool.xyz';
 
 -- 3) Fungsi cek admin (dipakai aturan RLS)
 create or replace function public.is_admin() returns boolean
