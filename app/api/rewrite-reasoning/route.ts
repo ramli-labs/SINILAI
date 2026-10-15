@@ -97,10 +97,14 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("Rewrite reasoning error:", err);
     // Batas kecepatan / server Claude sibuk: kirim 429 supaya browser mencoba lagi
-    const busy = /\((429|529|503)\)/.test(String(err?.message ?? ""));
+    const msg = String(err?.message ?? "Gagal membuat deskripsi");
+    // 429 = sibuk/batas kecepatan (boleh dicoba ulang otomatis)
+    // 422 = AI tidak menghasilkan deskripsi (tidak perlu diulang otomatis)
+    const busy = /\((429|529|503)\)/.test(msg);
+    const noAnswer = /AI tidak menghasilkan deskripsi/.test(msg);
     return NextResponse.json(
-      { error: err.message ?? "Gagal membuat deskripsi" },
-      { status: busy ? 429 : 500 }
+      { error: msg },
+      { status: busy ? 429 : noAnswer ? 422 : 500 }
     );
   }
 }

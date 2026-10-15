@@ -5,6 +5,7 @@
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const REWRITE_MODEL = "claude-haiku-5-5";
+const FALLBACK_MODEL = "claude-sonnet-5-5";
 
 export interface RewriteInput {
   questionNumber: string;
@@ -47,6 +48,26 @@ Teacher's score: ${input.newScore}/${input.maxMarks}
 
 Write the new feedback.`;
 
+  // Coba dengan Haiku dulu (murah). Bila jawabannya kosong/terpotong
+  // (misalnya habis untuk "berpikir" pada soal panjang), ulangi sekali dengan Sonnet.
+  try {
+    return await callModel(REWRITE_MODEL, 3000, system, user);
+  } catch (err: any) {
+    if (err instanceof EmptyAnswerError) {
+      return await callModel(FALLBACK_MODEL, 6000, system, user);
+    }
+    throw err;
+  }
+}
+
+export class EmptyAnswerError extends Error {}
+
+async function callModel(
+  model: string,
+  maxTokens: number,
+  system: string,
+  user: string
+): Promise<string> {
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
     headers: {
@@ -55,8 +76,8 @@ Write the new feedback.`;
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: REWRITE_MODEL,
-      max_tokens: 400,
+      model,
+      max_tokens: maxTokens,
       system,
       messages: [{ role: "user", content: user }],
     }),
@@ -64,7 +85,7 @@ Write the new feedback.`;
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Claude API error (${response.status}): ${errText}`);
+    throw new Error(`Claude API error (${response.status}): ${errText.slice(0, 300)}`);
   }
 
   const data = await response.json();
@@ -75,6 +96,10 @@ Write the new feedback.`;
     .trim()
     .replace(/^["']|["']$/g, "");
 
-  if (!text) throw new Error("AI tidak mengembalikan deskripsi.");
+  if (!text || data.stop_reason === "max_tokens" || data.stop_reason === "refusal") {
+    throw new EmptyAnswerError(
+      `AI tidak menghasilkan deskripsi (model ${model}, stop_reason: ${data.stop_reason ?? "?"}).`
+    );
+  }
   return text;
 }
