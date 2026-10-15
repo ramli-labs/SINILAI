@@ -47,14 +47,28 @@ drop policy if exists subjects_admin_write on subjects;
 create policy subjects_admin_write on subjects for all
   using (public.is_admin()) with check (public.is_admin());
 
---    class_teachers: semua boleh membaca, yang mengubah hanya admin atau pemilik kelas
+--    class_teachers: semua boleh membaca, yang mengubah hanya admin atau pemilik kelas.
+--    PENTING: jangan pakai "for all" yang merujuk tabel classes — kebijakan classes juga
+--    merujuk class_teachers sehingga terjadi rekursi tak berujung (kelas tidak terbaca).
+create or replace function public.owns_class(cid uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from classes where id = cid and owner_teacher_id = auth.uid());
+$$;
+
 alter table class_teachers enable row level security;
 drop policy if exists class_teachers_read on class_teachers;
 create policy class_teachers_read on class_teachers for select using (auth.uid() is not null);
 drop policy if exists class_teachers_write on class_teachers;
-create policy class_teachers_write on class_teachers for all
-  using (public.is_admin() or class_id in (select id from classes where owner_teacher_id = auth.uid()))
-  with check (public.is_admin() or class_id in (select id from classes where owner_teacher_id = auth.uid()));
+drop policy if exists class_teachers_insert on class_teachers;
+drop policy if exists class_teachers_update on class_teachers;
+drop policy if exists class_teachers_delete on class_teachers;
+create policy class_teachers_insert on class_teachers for insert
+  with check (public.is_admin() or public.owns_class(class_id));
+create policy class_teachers_update on class_teachers for update
+  using (public.is_admin() or public.owns_class(class_id))
+  with check (public.is_admin() or public.owns_class(class_id));
+create policy class_teachers_delete on class_teachers for delete
+  using (public.is_admin() or public.owns_class(class_id));
 
 -- Cek hasil: harus muncul akun Anda dengan role super_admin
 select full_name, email, role, is_active from teachers order by role desc, full_name;
