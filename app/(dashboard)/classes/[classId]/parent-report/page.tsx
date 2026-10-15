@@ -355,6 +355,9 @@ export default async function ParentReportPage({
 
               return (
                 <div key={subjectName} className="mb-5 break-inside-avoid">
+                  {/* Judul mapel + bagian pertama dibuat satu kesatuan supaya judul
+                      tidak tertinggal sendirian di bawah halaman */}
+                  <div className="break-inside-avoid" data-keep-with-next>
                   <h3 className="mb-2 break-after-avoid border-b border-gray-200 pb-1 text-sm font-semibold text-gray-800">
                     {subjectName}
                   </h3>
@@ -387,6 +390,8 @@ export default async function ParentReportPage({
                     )
                   )}
 
+                  </div>
+
                   {penguatan.length > 0 && (
                     <div className="mb-2">
                       <p className="text-sm font-medium text-amber-700">⚠️ Needs Reinforcement:</p>
@@ -405,7 +410,7 @@ export default async function ParentReportPage({
             })}
 
             {indicatorMap.length > 0 && (
-              <div className="mt-6 break-inside-avoid border-t border-gray-200 pt-3 text-[11px] leading-snug text-gray-600">
+              <div className="mt-6 break-inside-avoid border-t border-gray-200 pt-3 text-[11px] leading-snug text-gray-600" data-keep-with-next>
                 <p className="mb-1 font-semibold text-gray-700">
                   Indicator Map — which questions assess each indicator
                 </p>

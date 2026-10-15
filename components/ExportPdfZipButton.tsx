@@ -19,7 +19,11 @@ const FOOTER_MM = 8; // ruang tambahan di bawah untuk footer
 // kecil dan lebih tajam daripada JPEG (± 0,2–0,3 MB/halaman).
 const toPng = (c: HTMLCanvasElement) => c.toDataURL("image/png");
 
-function addCanvasToPdf(pdf: any, canvas: HTMLCanvasElement) {
+// Rentang (dalam piksel canvas) yang tidak boleh terpotong di tengahnya,
+// mis. judul mapel beserta beberapa baris pertama isinya.
+type KeepRange = { start: number; end: number };
+
+function addCanvasToPdf(pdf: any, canvas: HTMLCanvasElement, keep: KeepRange[] = []) {
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const usableW = pageW - MARGIN_MM * 2;
@@ -43,6 +47,12 @@ function addCanvasToPdf(pdf: any, canvas: HTMLCanvasElement) {
   let first = true;
   while (top < canvas.height) {
     let cut = Math.min(top + pagePx, canvas.height);
+    // Jangan memotong di dalam rentang "keep": pindahkan potongan ke atas rentang itu
+    // (selama halaman ini tetap terisi minimal 30%), supaya judul ikut ke halaman berikutnya.
+    if (cut < canvas.height) {
+      const hit = keep.find((r) => r.start < cut && cut < r.end && r.start > top + pagePx * 0.3);
+      if (hit) cut = Math.floor(hit.start);
+    }
     if (cut < canvas.height && ctx) {
       cut = findBlankRow(ctx, canvas.width, cut, Math.floor(pagePx * 0.2)) ?? cut;
     }
@@ -129,8 +139,22 @@ export default function ExportPdfZipButton({
         if (!el) continue;
 
         const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff" });
+
+        // Posisi blok yang harus utuh (judul mapel + awal isinya, peta indikator)
+        const elRect = el.getBoundingClientRect();
+        const scaleY = canvas.height / el.scrollHeight;
+        const keep = Array.from(el.querySelectorAll("[data-keep-with-next]")).map((node) => {
+          const r = (node as HTMLElement).getBoundingClientRect();
+          // Batasi tinggi rentang agar blok sangat panjang tetap bisa dipotong
+          const height = Math.min(r.height, 260);
+          return {
+            start: Math.max(0, (r.top - elRect.top - 6) * scaleY),
+            end: (r.top - elRect.top + height) * scaleY,
+          };
+        });
+
         const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
-        addCanvasToPdf(pdf, canvas);
+        addCanvasToPdf(pdf, canvas, keep);
         addFooters(pdf, entry.footer);
 
         const pdfBlob = pdf.output("blob");
