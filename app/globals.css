@@ -5,7 +5,13 @@
 /* Cetak laporan: A4, warna tetap muncul, latar putih */
 @page {
   size: A4;
-  margin: 12mm;
+  margin: 12mm 12mm 16mm;
+  /* Nomor halaman di footer (Chrome/Edge versi baru) */
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 8pt;
+    color: #777;
+  }
 }
 
 @media print {

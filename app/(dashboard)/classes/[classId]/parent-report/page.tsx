@@ -231,6 +231,7 @@ export default async function ParentReportPage({
             entries={report.map(({ student }) => ({
               elementId: `report-card-${student.id}`,
               fileName: `Laporan_${student.full_name.replace(/\s+/g, "_")}`,
+              footer: `${student.full_name} · ${classData.name}`,
             }))}
             zipFileName={`Laporan_${classData.name.replace(/\s+/g, "_")}.zip`}
           />
