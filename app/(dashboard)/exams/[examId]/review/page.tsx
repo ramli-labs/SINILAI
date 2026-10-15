@@ -136,6 +136,13 @@ export default async function ReviewPage({
     .eq("exam_id", examId)
     .order("created_at");
 
+  // Urutkan sesuai abjad nama siswa (berlaku juga untuk ekspor Excel)
+  (submissions ?? []).sort((a: any, b: any) =>
+    String(a.students?.full_name ?? "").localeCompare(String(b.students?.full_name ?? ""), "id", {
+      sensitivity: "base",
+    })
+  );
+
   const submissionIds = (submissions ?? []).map((s) => s.id);
   const svc = serviceClient();
 
